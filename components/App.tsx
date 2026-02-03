@@ -2057,7 +2057,6 @@ const App: React.FC = () => {
   if (!isLoggedIn) {
       return <LoginPage onLogin={handleLogin} />;
   }
-   ]);
 
   const [cart, setCart] = React.useState<Product[]>([]);
   const [isCartOpen, setIsCartOpen] = React.useState(false);
