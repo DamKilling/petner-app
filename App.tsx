@@ -1308,7 +1308,17 @@ const App: React.FC = () => {
     switch(activePage) {
       case 'Home': return <HomePage setActivePage={handlePageChange} />;
       case 'Services': return <ServicesPage setActivePage={handlePageChange} />;
-      case 'Shop': return <ShopPage onAddToCart={(p) => { setCart([...cart, p]); setIsCartOpen(true); }} />;
+      case 'Shop': return <ShopPage onAddToCart={(p) => {
+          setCart(prevCart => {
+            const exists = prevCart.some(item => item.id === p.id);
+            if (exists) {
+              alert(`${p.name} is already in your cart`);
+              return prevCart;
+            }
+            return [...prevCart, p];
+          });
+          setIsCartOpen(true);
+        }} />;
       case 'Community': return <CommunityPage setActivePage={handlePageChange} posts={posts} onPostSelect={(post) => handlePageChange('PostDetail', { post })} />;
       case 'Profile': return <ProfilePage setActivePage={handlePageChange} user={currentUser} />;
       case 'Upload': return <UploadPage setActivePage={handlePageChange} onPublish={handlePublishPost} />;

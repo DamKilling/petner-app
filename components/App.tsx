@@ -876,7 +876,7 @@ const PetAICompanionPage: React.FC<{
 
     const handleSelectPet = async (type: 'Dog' | 'Cat') => {
         setPetType(type);
-        setMessages([]); // Clear previous chat
+        setMessages([]);
         setIsLoading(true);
         try {
             const res = await fetch('/api/gemini', {
@@ -898,6 +898,7 @@ const PetAICompanionPage: React.FC<{
             console.error("Failed to initialize AI chat:", error);
             const errorMessage = (error as Error).message;
             setMessages([{ sender: 'ai', text: `Sorry, I am having trouble connecting right now. ${errorMessage}` }]);
+            setPetType(null);
         } finally {
             setIsLoading(false);
         }
@@ -933,6 +934,7 @@ const PetAICompanionPage: React.FC<{
             console.error("Failed to send message:", error);
             const errorMessage = (error as Error).message;
             setMessages(prev => [...prev, { sender: 'ai', text: `I seem to be having trouble responding. Error: ${errorMessage}` }]);
+            setPetType(null);
         } finally {
             setIsLoading(false);
         }
@@ -1242,7 +1244,8 @@ const OrdersPage: React.FC<{
 const OrderDetailPage: React.FC<{
     order: Order | null;
     onBack: () => void;
-}> = ({ order, onBack }) => {
+    onAction: (orderId: string, action: 'pay' | 'cancel' | 'confirm' | 'review') => void;
+}> = ({ order, onBack, onAction }) => {
     if (!order) {
         return (
             <div className="text-center p-8">
@@ -1327,21 +1330,21 @@ const OrderDetailPage: React.FC<{
                 <div className="p-4 border-t bg-gray-50 flex gap-3">
                     {order.status === 'Pending Payment' && (
                         <>
-                            <button className="flex-1 py-3 bg-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-300 transition-colors">
+                            <button onClick={() => onAction(order.id, 'cancel')} className="flex-1 py-3 bg-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-300 transition-colors">
                                 Cancel Order
                             </button>
-                            <button className="flex-1 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors">
+                            <button onClick={() => onAction(order.id, 'pay')} className="flex-1 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors">
                                 Pay Now
                             </button>
                         </>
                     )}
                     {order.status === 'Pending Confirm' && (
-                        <button className="flex-1 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors">
+                        <button onClick={() => onAction(order.id, 'confirm')} className="flex-1 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors">
                             Confirm Completion
                         </button>
                     )}
                     {order.status === 'Completed' && (
-                        <button className="flex-1 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors">
+                        <button onClick={() => onAction(order.id, 'review')} className="flex-1 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors">
                             Leave Review
                         </button>
                     )}
@@ -1853,6 +1856,18 @@ const App: React.FC = () => {
       return <LoginPage onLogin={() => setIsLoggedIn(true)} />;
   }
   
+  const handleAddToCart = (product: Product) => {
+    setCart(prevCart => {
+      const exists = prevCart.some(item => item.id === product.id);
+      if (exists) {
+        alert(`${product.name} is already in your cart`);
+        return prevCart;
+      }
+      return [...prevCart, product];
+    });
+    setIsCartOpen(true);
+  };
+
   const handleRemoveFromCart = (indexToRemove: number) => {
     setCart(currentCart => currentCart.filter((_, index) => index !== indexToRemove));
   };
@@ -1960,6 +1975,29 @@ const App: React.FC = () => {
     handlePageChange('Profile');
   };
 
+  const handleOrderAction = (orderId: string, action: 'pay' | 'cancel' | 'confirm' | 'review') => {
+    setOrders(orders.map(order => {
+      if (order.id !== orderId) return order;
+      
+      switch(action) {
+        case 'pay':
+          return { ...order, status: 'In Service' as const };
+        case 'cancel':
+          return { ...order, status: 'Cancelled' as const };
+        case 'confirm':
+          return { ...order, status: 'Completed' as const };
+        case 'review':
+          alert('Review feature coming soon!');
+          return order;
+        default:
+          return order;
+      }
+    }));
+    alert(action === 'pay' ? 'Payment successful!' : 
+          action === 'cancel' ? 'Order cancelled.' : 
+          action === 'confirm' ? 'Order confirmed as completed!' : '');
+  };
+
   const handleLogout = () => {
     if (confirm('Are you sure you want to log out?')) {
       window.location.reload();
@@ -2005,7 +2043,7 @@ const App: React.FC = () => {
     switch(activePage) {
       case 'Home': return <HomePage setActivePage={handlePageChange} />;
       case 'Services': return <ServicesPage setActivePage={handlePageChange} />;
-      case 'Shop': return <ShopPage onAddToCart={(p) => setCart([...cart, p])} />;
+      case 'Shop': return <ShopPage onAddToCart={handleAddToCart} />;
       case 'Community': return <CommunityPage setActivePage={handlePageChange} posts={posts} onPostSelect={(post) => handlePageChange('PostDetail', { post })} />;
       case 'Profile': return <ProfilePage setActivePage={handlePageChange} user={currentUser} orders={orders} />;
       case 'Upload': return <UploadPage setActivePage={handlePageChange} onPublish={handlePublishPost} />;
@@ -2027,27 +2065,13 @@ const App: React.FC = () => {
             }}
         />;
       case 'Orders': return <OrdersPage orders={orders} onBack={() => handlePageChange('Profile')} onOrderSelect={(order) => handlePageChange('OrderDetail', { order })} />;
-      case 'OrderDetail': return <OrderDetailPage order={pageData?.order} onBack={() => handlePageChange('Orders')} />;
+      case 'OrderDetail': return <OrderDetailPage order={pageData?.order} onBack={() => handlePageChange('Orders')} onAction={handleOrderAction} />;
       case 'Notifications': return <NotificationsPage notifications={notifications} onBack={() => handlePageChange('Profile')} onMarkRead={handleMarkNotificationRead} onDelete={handleDeleteNotification} onMarkAllRead={handleMarkAllNotificationsRead} />;
       case 'Settings': return <SettingsPage settings={userSettings} onBack={() => handlePageChange('Profile')} onUpdate={handleUpdateSettings} />;
       case 'Invoices': return <InvoicesPage invoices={invoices} onBack={() => handlePageChange('Profile')} />;
       case 'Jobs': return <JobsPage jobs={jobs} onBack={() => handlePageChange('Profile')} />;
       case 'StoreApplication': return <StoreApplicationPage onBack={() => handlePageChange('Profile')} onSubmit={handleStoreApplication} />;
       case 'PetCredentials': return <PetCredentialsPage credentials={petCredentials} onBack={() => handlePageChange('Profile')} />;
-      default: return <HomePage setActivePage={handlePageChange} />;
-    }
-  };
-      case 'CreateMemorial': return <CreateMemorialPage onSave={handleSaveMemorial} onCancel={() => handlePageChange('Memorials')} />;
-      case 'AboutUs': return <AboutUsPage />;
-      case 'ServiceDetail': 
-        return <ServiceDetailPage 
-            service={pageData?.service} 
-            onBack={() => handlePageChange('Services')} 
-            onAddToCart={(product) => {
-                setCart(currentCart => [...currentCart, product]);
-                setIsCartOpen(true);
-            }}
-        />;
       default: return <HomePage setActivePage={handlePageChange} />;
     }
   };
