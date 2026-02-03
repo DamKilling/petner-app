@@ -20,6 +20,7 @@ export interface Post {
     avatar: string;
     image?: string | null;
     comments: Comment[];
+    location?: string;
 }
 
 export interface Product {

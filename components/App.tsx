@@ -370,9 +370,18 @@ const CartSidebar: React.FC<{
     onClose: () => void;
     cart: Product[];
     onRemoveFromCart: (index: number) => void;
-}> = ({ isOpen, onClose, cart, onRemoveFromCart }) => {
+    onCheckout: (cart: Product[], paymentMethod: string) => void;
+}> = ({ isOpen, onClose, cart, onRemoveFromCart, onCheckout }) => {
     const [paymentMethod, setPaymentMethod] = React.useState('card');
+    const [isProcessing, setIsProcessing] = React.useState(false);
     const cartTotal = cart.reduce((total, item) => total + item.price, 0);
+
+    const handleCheckout = async () => {
+        setIsProcessing(true);
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        onCheckout(cart, paymentMethod);
+        setIsProcessing(false);
+    };
 
     return (
         <>
@@ -433,8 +442,18 @@ const CartSidebar: React.FC<{
                                 <span>Total</span>
                                 <span>${cartTotal.toFixed(2)}</span>
                             </div>
-                            <button className="w-full bg-purple-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-purple-200 hover:bg-purple-700 transition-all">
-                                Checkout
+                            <button 
+                                onClick={handleCheckout}
+                                disabled={isProcessing}
+                                className="w-full bg-purple-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-purple-200 hover:bg-purple-700 transition-all disabled:bg-purple-400 flex items-center justify-center">
+                                {isProcessing ? (
+                                    <>
+                                        <RefreshCwIcon className="w-5 h-5 mr-2 animate-spin" />
+                                        Processing...
+                                    </>
+                                ) : (
+                                    'Checkout'
+                                )}
                             </button>
                         </div>
                     )}
@@ -519,6 +538,18 @@ const CommunityPage: React.FC<{
 }> = ({ setActivePage, posts, onPostSelect }) => {
     const [activeTab, setActiveTab] = React.useState('Discover');
 
+    const filteredPosts = React.useMemo(() => {
+        switch(activeTab) {
+            case 'Follow':
+                return posts.filter(p => p.userId === currentUser.id);
+            case 'Nearby':
+                return posts.filter(p => p.location && p.location.trim() !== '');
+            case 'Discover':
+            default:
+                return posts;
+        }
+    }, [activeTab, posts]);
+
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
@@ -526,48 +557,61 @@ const CommunityPage: React.FC<{
                     {['Follow', 'Discover', 'Nearby'].map(tab => (
                         <button key={tab} onClick={() => setActiveTab(tab)} className={`text-lg font-bold pb-2 transition-colors duration-200 ${activeTab === tab ? 'text-gray-900 border-b-2 border-purple-600' : 'text-gray-400'}`}>{tab}</button>
                     ))}
-                </div>
+                 </div>
                  <button onClick={() => setActivePage('Upload')} className="bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center">
                     <PlusIcon className="w-5 h-5 mr-2" />
                     New Post
-                </button>
+                 </button>
             </div>
             
-            <main className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {posts.map((post) => {
-                  const isLiked = post.likedBy.includes(currentUser.id);
-                  return (
-                    <div key={post.id} onClick={() => onPostSelect(post)} className="bg-white rounded-xl flex flex-col overflow-hidden shadow-lg cursor-pointer transition-transform hover:scale-105 duration-200 relative">
-                        {post.image ? (
-                           <img src={post.image} alt={post.title} className="w-full h-48 object-cover" />
-                        ) : (
-                           <div className="text-5xl text-center flex-grow flex items-center justify-center p-4 h-48 bg-fuchsia-50">{post.emoji}</div>
-                        )}
-                        {post.userId === currentUser.id && (
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); setDeleteConfirmPostId(post.id); }}
-                            className="absolute top-2 right-2 p-1.5 bg-white/80 rounded-full text-gray-400 hover:text-red-500 shadow-sm"
-                          >
-                            <TrashIcon className="w-4 h-4" />
-                          </button>
-                        )}
-                        <div className="p-3 flex flex-col flex-grow justify-end">
-                            <p className="font-semibold text-gray-800 line-clamp-2">{post.title}</p>
-                            <div className="flex justify-between items-center mt-2">
-                                <div className="flex items-center">
-                                    <img src={post.avatar} alt={post.user} className="w-6 h-6 rounded-full mr-2" />
-                                    <span className="text-sm text-gray-500 truncate">{post.user}</span>
-                                </div>
-                                <div className={`flex items-center text-sm ${isLiked ? 'text-red-500' : 'text-gray-500'}`}>
-                                    <HeartIcon className={`w-4 h-4 mr-1 ${isLiked ? 'fill-current' : ''}`} />
-                                    <span>{post.likes}</span>
+            {filteredPosts.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-xl shadow-md">
+                    <p className="text-gray-500 mb-4">
+                        {activeTab === 'Follow' ? 'No posts from followed users yet' : 
+                         activeTab === 'Nearby' ? 'No nearby posts found' : 
+                         'No posts yet'}
+                    </p>
+                    <button onClick={() => setActivePage('Upload')} className="text-purple-600 font-semibold hover:text-purple-700">
+                        Create your first post
+                    </button>
+                </div>
+            ) : (
+                <main className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {filteredPosts.map((post) => {
+                      const isLiked = post.likedBy.includes(currentUser.id);
+                      return (
+                        <div key={post.id} onClick={() => onPostSelect(post)} className="bg-white rounded-xl flex flex-col overflow-hidden shadow-lg cursor-pointer transition-transform hover:scale-105 duration-200 relative">
+                            {post.image ? (
+                               <img src={post.image} alt={post.title} className="w-full h-48 object-cover" />
+                            ) : (
+                               <div className="text-5xl text-center flex-grow flex items-center justify-center p-4 h-48 bg-fuchsia-50">{post.emoji}</div>
+                            )}
+                            {post.userId === currentUser.id && (
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); setDeleteConfirmPostId(post.id); }}
+                                className="absolute top-2 right-2 p-1.5 bg-white/80 rounded-full text-gray-400 hover:text-red-500 shadow-sm"
+                              >
+                                <TrashIcon className="w-4 h-4" />
+                              </button>
+                            )}
+                            <div className="p-3 flex flex-col flex-grow justify-end">
+                                <p className="font-semibold text-gray-800 line-clamp-2">{post.title}</p>
+                                <div className="flex justify-between items-center mt-2">
+                                    <div className="flex items-center">
+                                        <img src={post.avatar} alt={post.user} className="w-6 h-6 rounded-full mr-2" />
+                                        <span className="text-sm text-gray-500 truncate">{post.user}</span>
+                                    </div>
+                                    <div className={`flex items-center text-sm ${isLiked ? 'text-red-500' : 'text-gray-500'}`}>
+                                        <HeartIcon className={`w-4 h-4 mr-1 ${isLiked ? 'fill-current' : ''}`} />
+                                        <span>{post.likes}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                  );
-                })}
-            </main>
+                      );
+                    })}
+                </main>
+            )}
         </div>
     );
 };
@@ -812,7 +856,24 @@ const PostDetailPage: React.FC<{
                             </button>
                             {(() => {
                               const isLiked = post.likedBy.includes(currentUser.id);
-                              return (
+  const handleCheckout = (checkoutCart: Product[], paymentMethod: string) => {
+    const newOrder: Order = {
+        id: `ORD-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+        date: new Date().toISOString().split('T')[0],
+        title: `Order with ${checkoutCart.length} item${checkoutCart.length > 1 ? 's' : ''}`,
+        price: checkoutCart.reduce((total, item) => total + item.price, 0),
+        status: 'Pending Payment',
+        type: 'Product',
+        desc: checkoutCart.map(item => item.name).join(', ')
+    };
+    setOrders(prev => [newOrder, ...prev]);
+    setCart([]);
+    setIsCartOpen(false);
+    alert(`Order placed successfully! Order ID: ${newOrder.id}\nPayment Method: ${paymentMethod}`);
+    handlePageChange('Orders');
+  };
+
+  return (
                                 <button onClick={() => onLike(post.id)} className={`flex items-center space-x-2 transition-transform active:scale-125 ${isLiked ? 'text-red-500' : 'text-gray-600'}`}>
                                    <HeartIcon className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
                                    <span>{post.likes}</span>
@@ -1450,6 +1511,21 @@ const SettingsPage: React.FC<{
     onBack: () => void;
     onUpdate: (key: keyof UserSettings, value: any) => void;
 }> = ({ settings, onBack, onUpdate }) => {
+    const handleClearCache = () => {
+        if (confirm('Are you sure you want to clear the app cache? This will remove all locally stored data.')) {
+            localStorage.clear();
+            sessionStorage.clear();
+            alert('Cache cleared successfully! The app will reload.');
+            window.location.reload();
+        }
+    };
+
+    const handleSignOut = () => {
+        if (confirm('Are you sure you want to sign out?')) {
+            window.location.reload();
+        }
+    };
+
     return (
         <div className="max-w-2xl mx-auto">
             <div className="flex items-center mb-6">
@@ -1523,13 +1599,13 @@ const SettingsPage: React.FC<{
                     </div>
                 </div>
                 <div className="p-4 border-t">
-                    <button className="w-full py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition-colors">
+                    <button onClick={handleClearCache} className="w-full py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition-colors">
                         Clear Cache
                     </button>
                 </div>
             </div>
             <div className="mt-6 bg-white rounded-2xl shadow-md p-4">
-                <button className="w-full py-3 bg-red-500 text-white font-semibold rounded-xl hover:bg-red-600 transition-colors">
+                <button onClick={handleSignOut} className="w-full py-3 bg-red-500 text-white font-semibold rounded-xl hover:bg-red-600 transition-colors">
                     Sign Out
                 </button>
             </div>
@@ -1585,6 +1661,10 @@ const JobsPage: React.FC<{
     jobs: Job[];
     onBack: () => void;
 }> = ({ jobs, onBack }) => {
+    const handleApply = (job: Job) => {
+        alert(`Application submitted for ${job.title}!\n\nWe will review your application and contact you at jessica.smith@example.com within 3-5 business days.\n\nThank you for your interest in joining our team!`);
+    };
+
     return (
         <div className="max-w-2xl mx-auto">
             <div className="flex items-center mb-6">
@@ -1606,7 +1686,7 @@ const JobsPage: React.FC<{
                             <span className="text-3xl">🐾</span>
                         </div>
                         <p className="text-gray-600 mt-4 text-sm">{job.description}</p>
-                        <button className="w-full mt-4 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors">
+                        <button onClick={() => handleApply(job)} className="w-full mt-4 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors">
                             Apply Now
                         </button>
                     </div>
@@ -1626,14 +1706,50 @@ const StoreApplicationPage: React.FC<{
         address: '',
         note: ''
     });
+    const [errors, setErrors] = React.useState({
+        name: '',
+        phone: '',
+        address: ''
+    });
+
+    const validateForm = () => {
+        const newErrors = { name: '', phone: '', address: '' };
+        let isValid = true;
+
+        if (!formData.name.trim()) {
+            newErrors.name = 'Name is required';
+            isValid = false;
+        } else if (formData.name.trim().length < 2) {
+            newErrors.name = 'Name must be at least 2 characters';
+            isValid = false;
+        }
+
+        const phoneRegex = /^[\d\s\-\+\(\)]{10,}$/;
+        if (!formData.phone.trim()) {
+            newErrors.phone = 'Phone number is required';
+            isValid = false;
+        } else if (!phoneRegex.test(formData.phone.trim())) {
+            newErrors.phone = 'Please enter a valid phone number';
+            isValid = false;
+        }
+
+        if (!formData.address.trim()) {
+            newErrors.address = 'Location is required';
+            isValid = false;
+        } else if (formData.address.trim().length < 5) {
+            newErrors.address = 'Please enter a complete address';
+            isValid = false;
+        }
+
+        setErrors(newErrors);
+        return isValid;
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.name || !formData.phone || !formData.address) {
-            alert('Please fill in all required fields');
-            return;
+        if (validateForm()) {
+            onSubmit(formData);
         }
-        onSubmit(formData);
     };
 
     return (
@@ -1657,30 +1773,42 @@ const StoreApplicationPage: React.FC<{
                         <input 
                             type="text"
                             value={formData.name}
-                            onChange={(e) => setFormData({...formData, name: e.target.value})}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
+                            onChange={(e) => {
+                                setFormData({...formData, name: e.target.value});
+                                if (errors.name) setErrors({...errors, name: ''});
+                            }}
+                            className={`w-full px-4 py-3 border rounded-lg focus:ring-purple-500 focus:border-purple-500 ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
                             placeholder="Enter your name"
                         />
+                        {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number *</label>
                         <input 
                             type="tel"
                             value={formData.phone}
-                            onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
+                            onChange={(e) => {
+                                setFormData({...formData, phone: e.target.value});
+                                if (errors.phone) setErrors({...errors, phone: ''});
+                            }}
+                            className={`w-full px-4 py-3 border rounded-lg focus:ring-purple-500 focus:border-purple-500 ${errors.phone ? 'border-red-500' : 'border-gray-300'}`}
                             placeholder="Enter your phone"
                         />
+                        {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Location *</label>
                         <input 
                             type="text"
                             value={formData.address}
-                            onChange={(e) => setFormData({...formData, address: e.target.value})}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
+                            onChange={(e) => {
+                                setFormData({...formData, address: e.target.value});
+                                if (errors.address) setErrors({...errors, address: ''});
+                            }}
+                            className={`w-full px-4 py-3 border rounded-lg focus:ring-purple-500 focus:border-purple-500 ${errors.address ? 'border-red-500' : 'border-gray-300'}`}
                             placeholder="Enter city/address"
                         />
+                        {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Additional Notes</label>
@@ -1744,10 +1872,10 @@ const App: React.FC = () => {
   const [history, setHistory] = React.useState<{ page: Page; data: any }[]>([]);
 
   const [posts, setPosts] = React.useState<Post[]>([
-    { id: 1, emoji: "🌈", title: "Crossed the rainbow bridge today. Miss you, buddy.", user: "Sarah", userId: "user-sarah", likes: 12, likedBy: [], avatar: "https://i.pravatar.cc/150?u=sarah", comments: [] },
-    { id: 2, emoji: "❤️", image: "https://placedog.net/500/500?id=45", title: "Our sweet boy, Max. We'll never forget your cuddles.", user: "John D.", userId: "user-john", likes: 45, likedBy: [], avatar: "https://i.pravatar.cc/150?u=john", comments: [] },
+    { id: 1, emoji: "🌈", title: "Crossed the rainbow bridge today. Miss you, buddy.", user: "Sarah", userId: "user-sarah", likes: 12, likedBy: [], avatar: "https://i.pravatar.cc/150?u=sarah", comments: [], location: "Suzhou Industrial Park" },
+    { id: 2, emoji: "❤️", image: "https://placedog.net/500/500?id=45", title: "Our sweet boy, Max. We'll never forget your cuddles.", user: "John D.", userId: "user-john", likes: 45, likedBy: [], avatar: "https://i.pravatar.cc/150?u=john", comments: [], location: "Taicang" },
     { id: 3, emoji: "❤️", image: "https://loremflickr.com/500/500/cat?lock=12", title: "Found her favorite toy today and couldn't stop crying.", user: "Emily", userId: "user-emily", likes: 33, likedBy: [], avatar: "https://i.pravatar.cc/150?u=emily", comments: [] },
-    { id: 4, emoji: "🕊️", title: "Fly high, sweet angel.", user: "Mike", userId: "user-mike", likes: 21, likedBy: [], avatar: "https://i.pravatar.cc/150?u=mike", comments: [] },
+    { id: 4, emoji: "🕊️", title: "Fly high, sweet angel.", user: "Mike", userId: "user-mike", likes: 21, likedBy: [], avatar: "https://i.pravatar.cc/150?u=mike", comments: [], location: "Kunshan" },
   ]);
 
   const [memorials, setMemorials] = React.useState<Memorial[]>([
@@ -2084,6 +2212,7 @@ const App: React.FC = () => {
         onClose={() => setIsCartOpen(false)}
         cart={cart}
         onRemoveFromCart={handleRemoveFromCart}
+        onCheckout={handleCheckout}
       />
       {deleteConfirmPostId !== null && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setDeleteConfirmPostId(null)}>

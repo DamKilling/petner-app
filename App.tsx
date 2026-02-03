@@ -187,7 +187,24 @@ const ServicesPage: React.FC<{
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-4">
                 {services.map(service => {
                     const isSelected = selectedService === service.title;
-                    return (
+  const handleCheckout = (checkoutCart: Product[], paymentMethod: string) => {
+    const newOrder: Order = {
+        id: `ORD-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+        date: new Date().toISOString().split('T')[0],
+        title: `Order with ${checkoutCart.length} item${checkoutCart.length > 1 ? 's' : ''}`,
+        price: checkoutCart.reduce((total, item) => total + item.price, 0),
+        status: 'Pending Payment',
+        type: 'Product',
+        desc: checkoutCart.map(item => item.name).join(', ')
+    };
+    setOrders(prev => [newOrder, ...prev]);
+    setCart([]);
+    setIsCartOpen(false);
+    alert(`Order placed successfully! Order ID: ${newOrder.id}\nPayment Method: ${paymentMethod}`);
+    handlePageChange('Orders');
+  };
+
+  return (
                         <div 
                             key={service.title} 
                             onClick={() => setSelectedService(service.title)}
@@ -369,9 +386,18 @@ const CartSidebar: React.FC<{
     onClose: () => void;
     cart: Product[];
     onRemoveFromCart: (index: number) => void;
-}> = ({ isOpen, onClose, cart, onRemoveFromCart }) => {
+    onCheckout: (cart: Product[], paymentMethod: string) => void;
+}> = ({ isOpen, onClose, cart, onRemoveFromCart, onCheckout }) => {
     const [paymentMethod, setPaymentMethod] = React.useState('card');
+    const [isProcessing, setIsProcessing] = React.useState(false);
     const cartTotal = cart.reduce((total, item) => total + item.price, 0);
+
+    const handleCheckout = async () => {
+        setIsProcessing(true);
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        onCheckout(cart, paymentMethod);
+        setIsProcessing(false);
+    };
 
     return (
         <>
@@ -432,8 +458,18 @@ const CartSidebar: React.FC<{
                                 <span>Total</span>
                                 <span>${cartTotal.toFixed(2)}</span>
                             </div>
-                            <button className="w-full bg-purple-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-purple-200 hover:bg-purple-700 transition-all">
-                                Checkout
+                            <button 
+                                onClick={handleCheckout}
+                                disabled={isProcessing}
+                                className="w-full bg-purple-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-purple-200 hover:bg-purple-700 transition-all disabled:bg-purple-400 flex items-center justify-center">
+                                {isProcessing ? (
+                                    <>
+                                        <RefreshCwIcon className="w-5 h-5 mr-2 animate-spin" />
+                                        Processing...
+                                    </>
+                                ) : (
+                                    'Checkout'
+                                )}
                             </button>
                         </div>
                     )}
@@ -1353,6 +1389,7 @@ const App: React.FC = () => {
         onClose={() => setIsCartOpen(false)}
         cart={cart}
         onRemoveFromCart={handleRemoveFromCart}
+        onCheckout={handleCheckout}
       />
       <main className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
         {activePage !== 'Home' && (
