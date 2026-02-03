@@ -1,5 +1,5 @@
 import React from 'react';
-import { Page, Post, Comment, Product, Memorial } from './types';
+import { Page, Post, Comment, Product, Memorial, MAX_DAILY_LIKES, UserLikeStats } from './types';
 import BottomNav from './BottomNav';
 import {
   CalendarIcon, PawIcon, LocationPinIcon, HeartIcon, InfoIcon, UsersIcon, CheckCircleIcon, DiamondIcon, UrnIcon, CandleIcon,
@@ -1182,6 +1182,12 @@ const App: React.FC = () => {
 
   const currentUser = { name: "Jessica Smith", id: "U-182374", avatar: "https://i.pravatar.cc/150?u=jessica" };
 
+  const [userLikeStats, setUserLikeStats] = React.useState<UserLikeStats>({
+    userId: currentUser.id,
+    todayLikes: 0,
+    lastLikeDate: new Date().toISOString().split('T')[0]
+  });
+
   const handlePageChange = (page: Page, data: any = null) => {
     if (activePage === page) return;
     setHistory(prev => [...prev, { page: activePage, data: pageData }]);
@@ -1213,7 +1219,40 @@ const App: React.FC = () => {
   };
   
   const handleLike = (postId: number) => {
-    setPosts(posts.map(p => p.id === postId ? { ...p, likes: p.likes + 1 } : p));
+    const userId = currentUser.id;
+    const today = new Date().toISOString().split('T')[0];
+
+    setPosts(posts.map(post => {
+      if (post.id !== postId) return post;
+
+      const isLiked = post.likedBy?.includes(userId);
+
+      if (isLiked) {
+        const updatedLikedBy = post.likedBy?.filter(id => id !== userId) || [];
+        return {
+          ...post,
+          likes: updatedLikedBy.length,
+          likedBy: updatedLikedBy
+        };
+      } else {
+        if (userLikeStats.todayLikes >= MAX_DAILY_LIKES) {
+          alert(`You have reached the daily like limit of ${MAX_DAILY_LIKES} likes. Please try again tomorrow.`);
+          return post;
+        }
+
+        setUserLikeStats(prev => ({
+          ...prev,
+          todayLikes: prev.lastLikeDate === today ? prev.todayLikes + 1 : 1,
+          lastLikeDate: today
+        }));
+
+        return {
+          ...post,
+          likes: (post.likes || 0) + 1,
+          likedBy: [...(post.likedBy || []), userId]
+        };
+      }
+    }));
   };
   
   const handleAddComment = (postId: number, text: string) => {

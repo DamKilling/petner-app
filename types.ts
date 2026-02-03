@@ -116,3 +116,11 @@ export interface StoreApplication {
     status: 'pending' | 'approved' | 'rejected';
     date: string;
 }
+
+export interface UserLikeStats {
+    userId: string;
+    todayLikes: number;
+    lastLikeDate: string;
+}
+
+export const MAX_DAILY_LIKES = 10;

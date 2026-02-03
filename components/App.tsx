@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Page, Post, Comment, Product, Memorial, Order, Notification, UserSettings, Job, Invoice, PetCredential, StoreApplication } from '../types';
+import { Page, Post, Comment, Product, Memorial, Order, Notification, UserSettings, Job, Invoice, PetCredential, StoreApplication, MAX_DAILY_LIKES, UserLikeStats } from '../types';
 import BottomNav from './BottomNav';
 import {
   CalendarIcon, PawIcon, LocationPinIcon, HeartIcon, InfoIcon, UsersIcon, CheckCircleIcon, DiamondIcon, UrnIcon, CandleIcon,
@@ -1781,6 +1781,12 @@ const App: React.FC = () => {
 
   const currentUser = { name: "Jessica Smith", id: "U-182374", avatar: "https://i.pravatar.cc/150?u=jessica" };
 
+  const [userLikeStats, setUserLikeStats] = React.useState<UserLikeStats>({
+    userId: currentUser.id,
+    todayLikes: 0,
+    lastLikeDate: new Date().toISOString().split('T')[0]
+  });
+
   const [orders, setOrders] = React.useState<Order[]>([
     { id: 'ORD-20240115-001', date: '2024-01-15', title: 'Basic Farewell', price: 120, status: 'Pending Payment', type: 'Service', petName: '小白', desc: 'Individual cremation service with urn bag' },
     { id: 'ORD-20240110-002', date: '2024-01-10', title: 'Premium Memorial', price: 280, status: 'In Service', type: 'Service', petName: '豆豆', desc: 'Premium urn with memorial certificate' },
@@ -1853,25 +1859,52 @@ const App: React.FC = () => {
   
   const handleLike = (postId: number) => {
     const userId = currentUser.id;
+    const today = new Date().toISOString().split('T')[0];
+
     setPosts(posts.map(post => {
       if (post.id !== postId) return post;
-      
+
       const isLiked = post.likedBy.includes(userId);
-      const updatedLikedBy = isLiked
-        ? post.likedBy.filter(id => id !== userId)
-        : [...post.likedBy, userId];
-      
-      return {
-        ...post,
-        likes: updatedLikedBy.length,
-        likedBy: updatedLikedBy
-      };
+
+      if (isLiked) {
+        const updatedLikedBy = post.likedBy.filter(id => id !== userId);
+        return {
+          ...post,
+          likes: updatedLikedBy.length,
+          likedBy: updatedLikedBy
+        };
+      } else {
+        if (userLikeStats.todayLikes >= MAX_DAILY_LIKES) {
+          alert(`You have reached the daily like limit of ${MAX_DAILY_LIKES} likes. Please try again tomorrow.`);
+          return post;
+        }
+
+        setUserLikeStats(prev => ({
+          ...prev,
+          todayLikes: prev.lastLikeDate === today ? prev.todayLikes + 1 : 1,
+          lastLikeDate: today
+        }));
+
+        return {
+          ...post,
+          likes: post.likes + 1,
+          likedBy: [...post.likedBy, userId]
+        };
+      }
     }));
   };
   
   const [deleteConfirmPostId, setDeleteConfirmPostId] = React.useState<number | null>(null);
 
   const handleDeletePost = (postId: number) => {
+    const postToDelete = posts.find(p => p.id === postId);
+    if (!postToDelete) return;
+
+    if (postToDelete.userId !== currentUser.id) {
+      alert('You can only delete your own posts.');
+      return;
+    }
+
     setPosts(posts.filter(p => p.id !== postId));
     handlePageChange('Community');
   };
