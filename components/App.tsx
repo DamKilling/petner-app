@@ -1871,24 +1871,33 @@ const App: React.FC = () => {
       return;
     }
     
-    if (!isLiked) {
-      setUserLikeStats(prev => ({
-        ...prev,
-        todayLikes: prev.lastLikeDate === today ? prev.todayLikes + 1 : 1,
-        lastLikeDate: today
-      }));
-    }
+    setUserLikeStats(prev => {
+      const isNewDay = prev.lastLikeDate !== today;
+      const currentCount = isNewDay ? 0 : prev.todayLikes;
+      
+      if (isLiked) {
+        return {
+          ...prev,
+          todayLikes: Math.max(0, currentCount - 1),
+          lastLikeDate: today
+        };
+      } else {
+        return {
+          ...prev,
+          todayLikes: currentCount + 1,
+          lastLikeDate: today
+        };
+      }
+    });
 
     setPosts(posts.map(post => {
       if (post.id !== postId) return post;
-
-      const isLiked = post.likedBy.includes(userId);
 
       if (isLiked) {
         const updatedLikedBy = post.likedBy.filter(id => id !== userId);
         return {
           ...post,
-          likes: updatedLikedBy.length,
+          likes: Math.max(0, updatedLikedBy.length),
           likedBy: updatedLikedBy
         };
       } else {
