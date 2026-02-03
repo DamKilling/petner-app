@@ -11,7 +11,44 @@ import {
 
 // Page Components defined in the same file to keep file count low.
 
-const LoginPage: React.FC<{ onLogin: (asGuest: boolean) => void }> = ({ onLogin }) => {
+const LoginPage: React.FC<{ onLogin: (asGuest: boolean, user?: { name: string; id: string; avatar: string; email: string }) => void }> = ({ onLogin }) => {
+    const [isLoading, setIsLoading] = React.useState(false);
+    const [email, setEmail] = React.useState('jessica.smith@example.com');
+    const [password, setPassword] = React.useState('password123');
+    const [error, setError] = React.useState('');
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setIsLoading(true);
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        if (email && password) {
+            const user = {
+                name: email.split('@')[0].replace(/\./g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                id: `U-${Date.now().toString(36).toUpperCase()}`,
+                avatar: `https://i.pravatar.cc/150?u=${email}`,
+                email: email
+            };
+            onLogin(false, user);
+        } else {
+            setError('Please enter valid credentials');
+            setIsLoading(false);
+        }
+    };
+
+    const handleGuestLogin = async () => {
+        setIsLoading(true);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        onLogin(true, {
+            name: "Guest User",
+            id: `U-GUEST-${Date.now().toString(36).toUpperCase()}`,
+            avatar: "https://i.pravatar.cc/150?u=guest",
+            email: "guest@example.com"
+        });
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 via-fuchsia-50 to-white flex items-center justify-center p-4 font-sans">
             <div className="max-w-md w-full bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 space-y-8">
@@ -20,23 +57,57 @@ const LoginPage: React.FC<{ onLogin: (asGuest: boolean) => void }> = ({ onLogin 
                     <h2 className="text-3xl font-bold text-gray-900">Cherish Every Moment</h2>
                     <p className="mt-2 text-gray-600">Sign in to continue to your memorial space.</p>
                 </div>
-                <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); onLogin(false); }}>
+                <form className="space-y-6" onSubmit={handleSubmit}>
                     <div>
                         <label htmlFor="email" className="text-sm font-medium text-gray-700">Email Address</label>
-                        <input id="email" name="email" type="email" autoComplete="email" required defaultValue="jessica.smith@example.com" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500" />
+                        <input 
+                            id="email" 
+                            name="email" 
+                            type="email" 
+                            autoComplete="email" 
+                            required 
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500" 
+                        />
                     </div>
                     <div>
                         <label htmlFor="password"className="text-sm font-medium text-gray-700">Password</label>
-                        <input id="password" name="password" type="password" autoComplete="current-password" required defaultValue="password123" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500" />
+                        <input 
+                            id="password" 
+                            name="password" 
+                            type="password" 
+                            autoComplete="current-password" 
+                            required 
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-purple-500 focus:border-purple-500" 
+                        />
                     </div>
+                    {error && <p className="text-red-500 text-sm">{error}</p>}
                     <div>
-                        <button type="submit" className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors">
-                            Sign In
+                        <button 
+                            type="submit" 
+                            disabled={isLoading}
+                            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors disabled:bg-purple-400"
+                        >
+                            {isLoading ? (
+                                <>
+                                    <RefreshCwIcon className="w-5 h-5 mr-2 animate-spin" />
+                                    Signing in...
+                                </>
+                            ) : (
+                                'Sign In'
+                            )}
                         </button>
                     </div>
                 </form>
                 <div className="text-center">
-                    <button onClick={() => onLogin(true)} className="font-medium text-sm text-purple-600 hover:text-purple-500">
+                    <button 
+                        onClick={handleGuestLogin} 
+                        disabled={isLoading}
+                        className="font-medium text-sm text-purple-600 hover:text-purple-500 disabled:opacity-50"
+                    >
                         Continue as Guest
                     </button>
                 </div>
@@ -260,6 +331,7 @@ const ServiceDetailPage: React.FC<{
   
   const [selectedUrn, setSelectedUrn] = React.useState(urnOptions[0]);
   const [selectedKeepsake, setSelectedKeepsake] = React.useState(keepsakeOptions[0]);
+  const [isAdding, setIsAdding] = React.useState(false);
 
   if (!service) {
       return (
@@ -272,7 +344,10 @@ const ServiceDetailPage: React.FC<{
 
   const finalPrice = service.price + selectedUrn.price + selectedKeepsake.price;
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
+    setIsAdding(true);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     const customizedProduct: Product = {
       id: service.id,
       icon: <CalendarIcon className="w-8 h-8 text-purple-500" />,
@@ -283,6 +358,7 @@ const ServiceDetailPage: React.FC<{
       tagColor: 'bg-purple-100 text-purple-600',
     };
     onAddToCart(customizedProduct);
+    setIsAdding(false);
   };
   
   return (
@@ -351,12 +427,22 @@ const ServiceDetailPage: React.FC<{
                           <span>Total</span>
                           <span>${finalPrice.toFixed(2)}</span>
                       </div>
-                      <button 
-                          onClick={handleAddToCart}
-                          className="w-full mt-4 bg-purple-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-purple-200 hover:bg-purple-700 transition-all flex items-center justify-center">
-                          <ShoppingCartIcon className="w-5 h-5 mr-2" />
-                          Add to Cart
-                      </button>
+                       <button 
+                           onClick={handleAddToCart}
+                           disabled={isAdding}
+                           className="w-full mt-4 bg-purple-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-purple-200 hover:bg-purple-700 transition-all flex items-center justify-center disabled:bg-purple-400">
+                           {isAdding ? (
+                               <>
+                                   <RefreshCwIcon className="w-5 h-5 mr-2 animate-spin" />
+                                   Adding...
+                               </>
+                           ) : (
+                               <>
+                                   <ShoppingCartIcon className="w-5 h-5 mr-2" />
+                                   Add to Cart
+                               </>
+                           )}
+                       </button>
                   </div>
               </div>
           </div>
@@ -929,7 +1015,55 @@ const PetAICompanionPage: React.FC<{
     const [messages, setMessages] = React.useState<{ sender: 'user' | 'ai', text: string }[]>([]);
     const [isLoading, setIsLoading] = React.useState(false);
     const [userInput, setUserInput] = React.useState('');
+    const [useFallback, setUseFallback] = React.useState(false);
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+    const fallbackResponses: Record<string, string[]> = {
+        greeting: [
+            "I'm so honored to chat with you about your beloved companion. Losing a pet is one of the hardest experiences, and I'm here to listen and support you.",
+            "Welcome. Your pet was lucky to have such a caring human. Let's talk about the wonderful memories you shared.",
+        ],
+        grief: [
+            "What you're feeling is completely normal. The grief of losing a pet is as profound as losing any family member. Don't rush yourself.",
+            "It's okay to not be okay. The love you shared doesn't disappear - it transforms into a beautiful memory that stays with you forever.",
+            "There's no timeline for healing. Take all the time you need to process this loss.",
+        ],
+        memories: [
+            "Your pet's love was real and unconditional. The joy you brought each other is something that can never be taken away.",
+            "Thank you for sharing about your pet. Every moment you spent together was a gift, and those memories will forever be etched in your heart.",
+        ],
+        support: [
+            "You're not alone in this. Many people who have lost pets describe feeling a unique, profound sadness - because our pets truly are family.",
+            "If you need someone to talk to, I'm here. There's no judgment, only compassion.",
+        ],
+        rainbow: [
+            "The Rainbow Bridge is a beautiful metaphor for the peace and joy our pets experience after they leave us. They wait for us, surrounded by love.",
+            "Your pet is watching over you now, grateful for every moment of love you gave. The bond you share transcends this life.",
+        ],
+        default: [
+            "I understand how much you're hurting. The love between you and your pet was special and real.",
+            "Your pet knew how much you loved them. That love doesn't end with their physical presence.",
+            "Take care of yourself during this difficult time. Be gentle with your heart.",
+        ]
+    };
+
+    const getFallbackResponse = (input: string): string => {
+        const lowerInput = input.toLowerCase();
+        
+        if (lowerInput.match(/(hello|hi|hey|start|begin)/)) {
+            return fallbackResponses.greeting[Math.floor(Math.random() * fallbackResponses.greeting.length)];
+        }
+        if (lowerInput.match(/(sad|grief|miss|loss|die|death|pain|hurt|empty)/)) {
+            return fallbackResponses.grief[Math.floor(Math.random() * fallbackResponses.grief.length)];
+        }
+        if (lowerInput.match(/(remember|memory|love|goodbye|forever|bridge|rainbow)/)) {
+            return fallbackResponses.rainbow[Math.floor(Math.random() * fallbackResponses.rainbow.length)];
+        }
+        if (lowerInput.match(/(help|support|alone|alone|scared)/)) {
+            return fallbackResponses.support[Math.floor(Math.random() * fallbackResponses.support.length)];
+        }
+        return fallbackResponses.default[Math.floor(Math.random() * fallbackResponses.default.length)];
+    };
 
     React.useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -939,27 +1073,38 @@ const PetAICompanionPage: React.FC<{
         setPetType(type);
         setMessages([]);
         setIsLoading(true);
+        setUseFallback(false);
+        
         try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            
             const res = await fetch('/api/gemini', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ petType: type, messages: [] }),
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
 
             if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.error || `API request failed with status ${res.status}`);
+                throw new Error('API unavailable');
             }
+            
             const data = await res.json();
             if (data.error) {
                 throw new Error(data.error);
             }
             setMessages([{ sender: 'ai', text: data.text }]);
+            setUseFallback(false);
         } catch (error) {
-            console.error("Failed to initialize AI chat:", error);
-            const errorMessage = (error as Error).message;
-            setMessages([{ sender: 'ai', text: `Sorry, I am having trouble connecting right now. ${errorMessage}` }]);
-            setPetType(null);
+            console.log("API unavailable, using fallback responses");
+            setUseFallback(true);
+            const petEmoji = type === 'Dog' ? '🐕' : '🐱';
+            setMessages([{ 
+                sender: 'ai', 
+                text: `${petEmoji} I'm here for you. ${fallbackResponses.greeting[0]} (Note: Using offline mode)` 
+            }]);
         } finally {
             setIsLoading(false);
         }
@@ -976,26 +1121,39 @@ const PetAICompanionPage: React.FC<{
         setIsLoading(true);
         
         try {
+            if (useFallback) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                const aiResponse = getFallbackResponse(userInput.trim());
+                setMessages(prev => [...prev, { sender: 'ai', text: aiResponse }]);
+                return;
+            }
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            
             const res = await fetch('/api/gemini', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ petType, messages: newMessages }),
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
 
             if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.error || `API request failed with status ${res.status}`);
+                throw new Error('API unavailable');
             }
             const data = await res.json();
             if (data.error) { throw new Error(data.error); }
             
             setMessages(prev => [...prev, { sender: 'ai', text: data.text }]);
+            setUseFallback(false);
 
         } catch (error) {
-            console.error("Failed to send message:", error);
-            const errorMessage = (error as Error).message;
-            setMessages(prev => [...prev, { sender: 'ai', text: `I seem to be having trouble responding. Error: ${errorMessage}` }]);
-            setPetType(null);
+            console.log("API unavailable, switching to fallback");
+            setUseFallback(true);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            const aiResponse = getFallbackResponse(userInput.trim());
+            setMessages(prev => [...prev, { sender: 'ai', text: `${aiResponse} (Offline mode)` }]);
         } finally {
             setIsLoading(false);
         }
@@ -1422,10 +1580,15 @@ const NotificationsPage: React.FC<{
     onDelete: (id: number) => void;
     onMarkAllRead: () => void;
 }> = ({ notifications, onBack, onMarkRead, onDelete, onMarkAllRead }) => {
-    const [activeTab, setActiveTab] = React.useState('All');
-    const tabs = ['All', 'system', 'order', 'community'];
+    const [activeTab, setActiveTab] = React.useState('all');
+    const tabs = [
+        { key: 'all', label: 'All' },
+        { key: 'system', label: 'System' },
+        { key: 'order', label: 'Orders' },
+        { key: 'community', label: 'Community' },
+    ];
 
-    const filteredNotifications = activeTab === 'All' 
+    const filteredNotifications = activeTab === 'all' 
         ? notifications 
         : notifications.filter(n => n.type === activeTab);
 
@@ -1454,15 +1617,15 @@ const NotificationsPage: React.FC<{
             <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
                 {tabs.map(tab => (
                     <button 
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
+                        key={tab.key}
+                        onClick={() => setActiveTab(tab.key)}
                         className={`px-4 py-2 rounded-full text-sm font-medium capitalize transition-colors ${
-                            activeTab === tab 
+                            activeTab === tab.key 
                             ? 'bg-purple-600 text-white' 
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         }`}
                     >
-                        {tab}
+                        {tab.label}
                     </button>
                 ))}
             </div>
@@ -1711,6 +1874,7 @@ const StoreApplicationPage: React.FC<{
         phone: '',
         address: ''
     });
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
 
     const validateForm = () => {
         const newErrors = { name: '', phone: '', address: '' };
@@ -1745,10 +1909,13 @@ const StoreApplicationPage: React.FC<{
         return isValid;
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (validateForm()) {
+            setIsSubmitting(true);
+            await new Promise(resolve => setTimeout(resolve, 1000));
             onSubmit(formData);
+            setIsSubmitting(false);
         }
     };
 
@@ -1820,8 +1987,15 @@ const StoreApplicationPage: React.FC<{
                             placeholder="Any additional information"
                         />
                     </div>
-                    <button type="submit" className="w-full py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors">
-                        Submit Application
+                    <button type="submit" disabled={isSubmitting} className="w-full py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors disabled:bg-purple-400 flex items-center justify-center">
+                        {isSubmitting ? (
+                            <>
+                                <RefreshCwIcon className="w-5 h-5 mr-2 animate-spin" />
+                                Submitting...
+                            </>
+                        ) : (
+                            'Submit Application'
+                        )}
                     </button>
                 </form>
             </div>
@@ -1866,54 +2040,31 @@ const PetCredentialsPage: React.FC<{
 };
 
 const App: React.FC = () => {
+  const [currentUser, setCurrentUser] = React.useState<{ name: string; id: string; avatar: string; email: string } | null>(null);
   const [isLoggedIn, setIsLoggedIn] = React.useState(false);
-  const [activePage, setActivePage] = React.useState<Page>('Home');
-  const [pageData, setPageData] = React.useState<any>(null);
-  const [history, setHistory] = React.useState<{ page: Page; data: any }[]>([]);
 
-  const [posts, setPosts] = React.useState<Post[]>([
-    { id: 1, emoji: "🌈", title: "Crossed the rainbow bridge today. Miss you, buddy.", user: "Sarah", userId: "user-sarah", likes: 12, likedBy: [], avatar: "https://i.pravatar.cc/150?u=sarah", comments: [], location: "Suzhou Industrial Park" },
-    { id: 2, emoji: "❤️", image: "https://placedog.net/500/500?id=45", title: "Our sweet boy, Max. We'll never forget your cuddles.", user: "John D.", userId: "user-john", likes: 45, likedBy: [], avatar: "https://i.pravatar.cc/150?u=john", comments: [], location: "Taicang" },
-    { id: 3, emoji: "❤️", image: "https://loremflickr.com/500/500/cat?lock=12", title: "Found her favorite toy today and couldn't stop crying.", user: "Emily", userId: "user-emily", likes: 33, likedBy: [], avatar: "https://i.pravatar.cc/150?u=emily", comments: [] },
-    { id: 4, emoji: "🕊️", title: "Fly high, sweet angel.", user: "Mike", userId: "user-mike", likes: 21, likedBy: [], avatar: "https://i.pravatar.cc/150?u=mike", comments: [], location: "Kunshan" },
-  ]);
-
-  const [memorials, setMemorials] = React.useState<Memorial[]>([
-    {
-      id: 1,
-      petName: 'Buddy',
-      petAvatar: 'https://placedog.net/500/500?id=10',
-      birthday: '2010-05-20',
-      adoptionDay: '2010-08-15',
-      favoriteToys: 'Squeaky squirrel, tennis balls',
-      stories: 'Buddy was the most loyal friend anyone could ask for. He loved long walks in the park and chasing squirrels. His favorite spot was right by the fireplace on a cold evening. We miss his gentle presence every day.',
-      photos: ['https://placedog.net/500/500?id=10', 'https://placedog.net/500/500?id=11', 'https://placedog.net/500/500?id=12'],
-      // Fix: Add missing candles and tributes properties to conform to the Memorial type
-      candles: 0,
-      tributes: [],
-    },
-     {
-      id: 2,
-      petName: 'Mittens',
-      petAvatar: 'https://loremflickr.com/500/500/cat?lock=20',
-      birthday: '2015-02-14',
-      adoptionDay: '2015-04-01',
-      favoriteToys: 'Laser pointer, catnip mice',
-      stories: 'Mittens had the loudest purr and the softest fur. She ruled the house with an iron paw, but was a total sweetheart when she wanted to be. Napping in sunbeams was her favorite pastime.',
-      photos: ['https://loremflickr.com/500/500/cat?lock=20', 'https://loremflickr.com/500/500/cat?lock=21', 'https://loremflickr.com/500/500/cat?lock=22'],
-      // Fix: Add missing candles and tributes properties to conform to the Memorial type
-      candles: 0,
-      tributes: [],
+  const handleLogin = (asGuest: boolean, user?: { name: string; id: string; avatar: string; email: string }) => {
+    if (asGuest || user) {
+      setCurrentUser(user || {
+        name: "Guest User",
+        id: `U-GUEST-${Date.now().toString(36).toUpperCase()}`,
+        avatar: "https://i.pravatar.cc/150?u=guest",
+        email: "guest@example.com"
+      });
+      setIsLoggedIn(true);
     }
+  };
+
+  if (!isLoggedIn) {
+      return <LoginPage onLogin={handleLogin} />;
+  }
    ]);
 
   const [cart, setCart] = React.useState<Product[]>([]);
   const [isCartOpen, setIsCartOpen] = React.useState(false);
 
-  const currentUser = { name: "Jessica Smith", id: "U-182374", avatar: "https://i.pravatar.cc/150?u=jessica" };
-
   const [userLikeStats, setUserLikeStats] = React.useState<UserLikeStats>({
-    userId: currentUser.id,
+    userId: currentUser?.id || 'guest',
     todayLikes: 0,
     lastLikeDate: new Date().toISOString().split('T')[0]
   });
