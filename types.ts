@@ -1,4 +1,3 @@
-// Fix: Add missing import for React to resolve React.ReactElement type.
 import React from 'react';
 
 export type Page = 'Home' | 'Services' | 'Shop' | 'Community' | 'Profile' | 'Upload' | 'PostDetail' | 'PetAICompanion' | 'Memorials' | 'MemorialDetail' | 'CreateMemorial' | 'AboutUs' | 'ServiceDetail' | 'Orders' | 'OrderDetail' | 'Notifications' | 'Settings' | 'Invoices' | 'Jobs' | 'StoreApplication' | 'PetCredentials';

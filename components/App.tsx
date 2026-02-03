@@ -140,7 +140,7 @@ const HomePage: React.FC<{ setActivePage: (page: Page) => void }> = ({ setActive
   return (
     <div>
       <div className="p-6 md:p-10 bg-gradient-to-b from-purple-200 via-fuchsia-100 to-transparent rounded-lg">
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-800">Pet Memorial Services</h1>
+        <h1 className="text-3xl md:text-4xl font-bold text-gray-800">Petner</h1>
         <p className="text-gray-500 mt-2">Honoring the unconditional love they gave us</p>
       </div>
 
@@ -1322,9 +1322,8 @@ const CreateMemorialPage: React.FC<{
     e.preventDefault();
     onSave({
       ...formData,
-      petAvatar: 'https://i.pravatar.cc/300?u=mittens', // Placeholder
-      photos: ['https://placedog.net/500/500?id=1', 'https://placedog.net/500/500?id=2', 'https://placedog.net/500/500?id=3'], // Placeholder
-      // Fix: Add missing candles and tributes properties to conform to the Memorial type
+      petAvatar: 'https://i.pravatar.cc/300?u=mittens',
+      photos: ['https://placedog.net/500/500?id=1', 'https://placedog.net/500/500?id=2', 'https://placedog.net/500/500?id=3'],
       candles: 0,
       tributes: [],
     });
@@ -1370,7 +1369,7 @@ const AboutUsPage: React.FC = () => {
         <div className="max-w-4xl mx-auto bg-white p-8 rounded-2xl shadow-xl">
             <h1 className="text-3xl font-bold text-center text-gray-800 mb-6">About Us</h1>
             <p className="text-gray-600 leading-relaxed mb-4">
-                Founded with a deep love for animals, Pet Memorial Services is dedicated to providing compassionate and professional end-of-life care for beloved pets. We understand that pets are family, and their loss is a profound experience. Our mission is to honor their memory with dignity and respect, while supporting pet owners through their time of grief.
+                Founded with a deep love for animals, Petner is dedicated to providing compassionate and professional end-of-life care for beloved pets. We understand that pets are family, and their loss is a profound experience. Our mission is to honor their memory with dignity and respect, while supporting pet owners through their time of grief.
             </p>
              <p className="text-gray-600 leading-relaxed mb-4">
                 Our team consists of caring professionals who are committed to creating a peaceful and comforting farewell. We offer a range of services, from individual cremation to personalized memorials, all designed to celebrate the unique bond you shared with your companion.
@@ -2366,13 +2365,33 @@ const App: React.FC = () => {
         onCheckout={handleCheckout}
       />
       {deleteConfirmPostId !== null && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setDeleteConfirmPostId(null)}>
-          <div className="bg-white rounded-xl p-6 mx-4 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">Confirm Delete</h3>
+        <div 
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" 
+            onClick={() => setDeleteConfirmPostId(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-dialog-title"
+        >
+          <div 
+            className="bg-white rounded-xl p-6 mx-4 max-w-sm w-full shadow-2xl" 
+            onClick={e => e.stopPropagation()}
+            onKeyDown={(e) => {
+                if (e.key === 'Escape') setDeleteConfirmPostId(null);
+                if (e.key === 'Enter') confirmDeletePost();
+            }}
+            tabIndex={-1}
+          >
+            <h3 id="delete-dialog-title" className="text-lg font-semibold text-gray-800 mb-2">Confirm Delete</h3>
             <p className="text-gray-600 mb-6">Are you sure you want to delete this post? This action cannot be undone.</p>
             <div className="flex gap-3">
-              <button onClick={() => setDeleteConfirmPostId(null)} className="flex-1 py-2.5 px-4 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors">Cancel</button>
-              <button onClick={confirmDeletePost} className="flex-1 py-2.5 px-4 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors">Delete</button>
+              <button 
+                onClick={() => setDeleteConfirmPostId(null)} 
+                className="flex-1 py-2.5 px-4 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+              >Cancel</button>
+              <button 
+                onClick={confirmDeletePost} 
+                className="flex-1 py-2.5 px-4 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors"
+              >Delete</button>
             </div>
           </div>
         </div>

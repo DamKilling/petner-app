@@ -1109,9 +1109,8 @@ const CreateMemorialPage: React.FC<{
     e.preventDefault();
     onSave({
       ...formData,
-      petAvatar: 'https://i.pravatar.cc/300?u=mittens', // Placeholder
-      photos: ['https://placedog.net/500/500?id=1', 'https://placedog.net/500/500?id=2', 'https://placedog.net/500/500?id=3'], // Placeholder
-      // Fix: Add missing candles and tributes properties to conform to the Memorial type
+      petAvatar: 'https://i.pravatar.cc/300?u=mittens',
+      photos: ['https://placedog.net/500/500?id=1', 'https://placedog.net/500/500?id=2', 'https://placedog.net/500/500?id=3'],
       candles: 0,
       tributes: [],
     });
@@ -1177,9 +1176,7 @@ const App: React.FC = () => {
 
   const [posts, setPosts] = React.useState<Post[]>([
     { id: 1, emoji: "🌈", title: "Crossed the rainbow bridge today. Miss you, buddy.", user: "Sarah", likes: 12, avatar: "https://i.pravatar.cc/150?u=sarah", comments: [] },
-    // Fix: Add missing emoji property
     { id: 2, emoji: "❤️", image: "https://placedog.net/500/500?id=45", title: "Our sweet boy, Max. We'll never forget your cuddles.", user: "John D.", likes: 45, avatar: "https://i.pravatar.cc/150?u=john", comments: [] },
-    // Fix: Add missing emoji property
     { id: 3, emoji: "❤️", image: "https://loremflickr.com/500/500/cat?lock=12", title: "Found her favorite toy today and couldn't stop crying.", user: "Emily", likes: 33, avatar: "https://i.pravatar.cc/150?u=emily", comments: [] },
     { id: 4, emoji: "🕊️", title: "Fly high, sweet angel.", user: "Mike", likes: 21, avatar: "https://i.pravatar.cc/150?u=mike", comments: [] },
   ]);
@@ -1194,20 +1191,18 @@ const App: React.FC = () => {
       favoriteToys: 'Squeaky squirrel, tennis balls',
       stories: 'Buddy was the most loyal friend anyone could ask for. He loved long walks in the park and chasing squirrels. His favorite spot was right by the fireplace on a cold evening. We miss his gentle presence every day.',
       photos: ['https://placedog.net/500/500?id=10', 'https://placedog.net/500/500?id=11', 'https://placedog.net/500/500?id=12'],
-      // Fix: Add missing candles and tributes properties to conform to the Memorial type
       candles: 0,
       tributes: [],
     },
      {
-      id: 2,
-      petName: 'Mittens',
+       id: 2,
+       petName: 'Mittens',
       petAvatar: 'https://loremflickr.com/500/500/cat?lock=20',
       birthday: '2015-02-14',
       adoptionDay: '2015-04-01',
       favoriteToys: 'Laser pointer, catnip mice',
       stories: 'Mittens had the loudest purr and the softest fur. She ruled the house with an iron paw, but was a total sweetheart when she wanted to be. Napping in sunbeams was her favorite pastime.',
       photos: ['https://loremflickr.com/500/500/cat?lock=20', 'https://loremflickr.com/500/500/cat?lock=21', 'https://loremflickr.com/500/500/cat?lock=22'],
-      // Fix: Add missing candles and tributes properties to conform to the Memorial type
       candles: 0,
       tributes: [],
     }
@@ -1359,8 +1354,6 @@ const App: React.FC = () => {
       case 'Profile': return <ProfilePage setActivePage={handlePageChange} user={currentUser} />;
       case 'Upload': return <UploadPage setActivePage={handlePageChange} onPublish={handlePublishPost} />;
       case 'PostDetail':
-        // Fix: Use find to get the live post object instead of relying on stale pageData.post
-        // This ensures that likes and comments are updated immediately in the UI
         const currentPost = posts.find(p => p.id === pageData?.post?.id);
         return <PostDetailPage post={currentPost || pageData?.post} onBack={() => handlePageChange('Community')} onLike={handleLike} onAddComment={handleAddComment} />;
       case 'PetAICompanion': return <PetAICompanionPage setActivePage={handlePageChange} />;
