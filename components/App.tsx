@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Page, Post, Comment, Product, Memorial } from '../types';
+import { Page, Post, Comment, Product, Memorial, Order, Notification, UserSettings, Job, Invoice, PetCredential, StoreApplication } from '../types';
 import BottomNav from './BottomNav';
 import {
   CalendarIcon, PawIcon, LocationPinIcon, HeartIcon, InfoIcon, UsersIcon, CheckCircleIcon, DiamondIcon, UrnIcon, CandleIcon,
@@ -534,12 +534,22 @@ const CommunityPage: React.FC<{
             </div>
             
             <main className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {posts.map((post) => (
-                    <div key={post.id} onClick={() => onPostSelect(post)} className="bg-white rounded-xl flex flex-col overflow-hidden shadow-lg cursor-pointer transition-transform hover:scale-105 duration-200">
+                {posts.map((post) => {
+                  const isLiked = post.likedBy.includes(currentUser.id);
+                  return (
+                    <div key={post.id} onClick={() => onPostSelect(post)} className="bg-white rounded-xl flex flex-col overflow-hidden shadow-lg cursor-pointer transition-transform hover:scale-105 duration-200 relative">
                         {post.image ? (
                            <img src={post.image} alt={post.title} className="w-full h-48 object-cover" />
                         ) : (
                            <div className="text-5xl text-center flex-grow flex items-center justify-center p-4 h-48 bg-fuchsia-50">{post.emoji}</div>
+                        )}
+                        {post.userId === currentUser.id && (
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setDeleteConfirmPostId(post.id); }}
+                            className="absolute top-2 right-2 p-1.5 bg-white/80 rounded-full text-gray-400 hover:text-red-500 shadow-sm"
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
                         )}
                         <div className="p-3 flex flex-col flex-grow justify-end">
                             <p className="font-semibold text-gray-800 line-clamp-2">{post.title}</p>
@@ -548,14 +558,15 @@ const CommunityPage: React.FC<{
                                     <img src={post.avatar} alt={post.user} className="w-6 h-6 rounded-full mr-2" />
                                     <span className="text-sm text-gray-500 truncate">{post.user}</span>
                                 </div>
-                                <div className="flex items-center text-sm text-gray-500">
-                                    <HeartIcon className="w-4 h-4 mr-1" />
+                                <div className={`flex items-center text-sm ${isLiked ? 'text-red-500' : 'text-gray-500'}`}>
+                                    <HeartIcon className={`w-4 h-4 mr-1 ${isLiked ? 'fill-current' : ''}`} />
                                     <span>{post.likes}</span>
                                 </div>
                             </div>
                         </div>
                     </div>
-                ))}
+                  );
+                })}
             </main>
         </div>
     );
@@ -564,22 +575,28 @@ const CommunityPage: React.FC<{
 const ProfilePage: React.FC<{ 
     setActivePage: (page: Page) => void;
     user: { name: string; id: string; avatar: string; };
-}> = ({ setActivePage, user }) => {
-    const orderIcons = [
-        { icon: <CreditCardIcon />, label: "Pending Payment" },
-        { icon: <ClockIcon />, label: "In Service" },
-        { icon: <CheckCircleIcon />, label: "Pending Confirm" },
-        { icon: <RefreshCwIcon />, label: "Returns/After-sales" },
+    orders: Order[];
+}> = ({ setActivePage, user, orders }) => {
+    const pendingPaymentCount = orders.filter(o => o.status === 'Pending Payment').length;
+    const inServiceCount = orders.filter(o => o.status === 'In Service').length;
+    const pendingConfirmCount = orders.filter(o => o.status === 'Pending Confirm').length;
+
+    const orderStats = [
+        { icon: <CreditCardIcon />, label: "Pending Payment", count: pendingPaymentCount, color: 'text-orange-500' },
+        { icon: <ClockIcon />, label: "In Service", count: inServiceCount, color: 'text-blue-500' },
+        { icon: <CheckCircleIcon />, label: "Pending Confirm", count: pendingConfirmCount, color: 'text-purple-500' },
+        { icon: <RefreshCwIcon />, label: "Returns", count: 0, color: 'text-gray-500' },
     ];
-    const managementIcons = [
-        { icon: <StoreIcon />, label: "Open Store" },
-        { icon: <FileTextIcon />, label: "Invoices" },
-        { icon: <BriefcaseIcon />, label: "Job Opportunities" },
-        { icon: <BellIcon />, label: "Notifications" },
-        { icon: <PawIcon />, label: "Pet Memorial Credentials" },
-        { icon: <SettingsIcon />, label: "Settings" },
-        { icon: <GridIcon />, label: "Apply to Join" },
-        { icon: <LogOutIcon />, label: "Sign Out" },
+
+    const managementActions = [
+        { icon: <FileTextIcon />, label: "Invoices", page: 'Invoices' as Page },
+        { icon: <BriefcaseIcon />, label: "Job Opportunities", page: 'Jobs' as Page },
+        { icon: <StoreIcon />, label: "Open Store", page: 'StoreApplication' as Page },
+        { icon: <BellIcon />, label: "Notifications", page: 'Notifications' as Page },
+        { icon: <PawIcon />, label: "Pet Credentials", page: 'PetCredentials' as Page },
+        { icon: <SettingsIcon />, label: "Settings", page: 'Settings' as Page },
+        { icon: <GridIcon />, label: "Apply to Join", page: 'StoreApplication' as Page },
+        { icon: <LogOutIcon />, label: "Sign Out", action: 'logout' },
     ];
 
     return (
@@ -597,14 +614,21 @@ const ProfilePage: React.FC<{
                 <div className="bg-white p-4 rounded-2xl shadow-md">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="font-bold text-gray-800">My Orders</h3>
-                        <a href="#" className="text-sm text-gray-500 flex items-center">View All <ChevronRightIcon className="w-4 h-4"/></a>
+                        <button onClick={() => setActivePage('Orders')} className="text-sm text-purple-600 flex items-center font-medium">View All <ChevronRightIcon className="w-4 h-4 ml-1"/></button>
                     </div>
                     <div className="flex justify-around">
-                        {orderIcons.map(item => (
-                            <div key={item.label} className="flex flex-col items-center text-center w-1/4">
-                                <div className="text-gray-600">{React.cloneElement(item.icon, { className: 'w-8 h-8' })}</div>
+                        {orderStats.map((item, index) => (
+                            <button 
+                                key={item.label} 
+                                onClick={() => setActivePage('Orders', { filter: item.label })}
+                                className="flex flex-col items-center text-center w-1/4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                                <div className={item.color}>{React.cloneElement(item.icon, { className: 'w-8 h-8' })}</div>
                                 <p className="text-xs mt-2 text-gray-600">{item.label}</p>
-                            </div>
+                                {item.count > 0 && (
+                                    <span className="bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 mt-1">{item.count}</span>
+                                )}
+                            </button>
                         ))}
                     </div>
                 </div>
@@ -620,11 +644,15 @@ const ProfilePage: React.FC<{
 
                 <div className="bg-white p-4 rounded-2xl shadow-md">
                     <div className="grid grid-cols-4 gap-y-6">
-                        {managementIcons.map(item => (
-                            <div key={item.label} className="flex flex-col items-center text-center">
+                        {managementActions.map((item, index) => (
+                            <button 
+                                key={item.label} 
+                                onClick={() => item.action === 'logout' ? handleLogout() : setActivePage(item.page)}
+                                className="flex flex-col items-center text-center py-2 rounded-lg hover:bg-gray-50 transition-colors w-full"
+                            >
                                 <div className="text-gray-600">{React.cloneElement(item.icon, { className: 'w-8 h-8' })}</div>
                                 <p className="text-xs mt-2 text-gray-600">{item.label}</p>
-                            </div>
+                            </button>
                         ))}
                     </div>
                 </div>
@@ -782,10 +810,20 @@ const PostDetailPage: React.FC<{
                                <MessageCircleIcon className="w-5 h-5" />
                                <span>{post.comments.length}</span>
                             </button>
-                            <button onClick={() => onLike(post.id)} className="flex items-center text-gray-600 space-x-2">
-                               <HeartIcon className="w-5 h-5" />
-                               <span>{post.likes}</span>
-                            </button>
+                            {(() => {
+                              const isLiked = post.likedBy.includes(currentUser.id);
+                              return (
+                                <button onClick={() => onLike(post.id)} className={`flex items-center space-x-2 transition-transform active:scale-125 ${isLiked ? 'text-red-500' : 'text-gray-600'}`}>
+                                   <HeartIcon className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
+                                   <span>{post.likes}</span>
+                                </button>
+                              );
+                            })()}
+                            {post.userId === currentUser.id && (
+                              <button onClick={() => setDeleteConfirmPostId(post.id)} className="flex items-center text-gray-400 hover:text-red-500 transition-colors">
+                                <TrashIcon className="w-5 h-5" />
+                              </button>
+                            )}
                         </div>
 
                         <div className="space-y-4">
@@ -1123,6 +1161,579 @@ const AboutUsPage: React.FC = () => {
     );
 };
 
+const OrdersPage: React.FC<{
+    orders: Order[];
+    onBack: () => void;
+    onOrderSelect: (order: Order) => void;
+}> = ({ orders, onBack, onOrderSelect }) => {
+    const [activeTab, setActiveTab] = React.useState('All');
+    const tabs = ['All', 'Pending Payment', 'In Service', 'Pending Confirm', 'Completed'];
+
+    const filteredOrders = activeTab === 'All' 
+        ? orders 
+        : orders.filter(o => o.status === activeTab);
+
+    const getStatusColor = (status: string) => {
+        switch(status) {
+            case 'Pending Payment': return 'bg-orange-100 text-orange-600';
+            case 'In Service': return 'bg-blue-100 text-blue-600';
+            case 'Pending Confirm': return 'bg-purple-100 text-purple-600';
+            case 'Completed': return 'bg-green-100 text-green-600';
+            default: return 'bg-gray-100 text-gray-600';
+        }
+    };
+
+    return (
+        <div className="max-w-2xl mx-auto">
+            <div className="flex items-center mb-6">
+                <button onClick={onBack} className="flex items-center text-gray-600 hover:text-purple-600 font-semibold">
+                    <ArrowLeftIcon className="w-5 h-5 mr-1" />
+                    Back
+                </button>
+                <h1 className="text-2xl font-bold text-gray-800 ml-4">My Orders</h1>
+            </div>
+            <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+                {tabs.map(tab => (
+                    <button 
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                            activeTab === tab 
+                            ? 'bg-purple-600 text-white' 
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                    >
+                        {tab}
+                    </button>
+                ))}
+            </div>
+            <div className="space-y-4">
+                {filteredOrders.length === 0 ? (
+                    <div className="bg-white rounded-2xl shadow-md p-8 text-center">
+                        <p className="text-gray-500">No orders found</p>
+                    </div>
+                ) : (
+                    filteredOrders.map(order => (
+                        <div 
+                            key={order.id} 
+                            onClick={() => onOrderSelect(order)}
+                            className="bg-white rounded-2xl shadow-md p-4 cursor-pointer hover:shadow-lg transition-shadow"
+                        >
+                            <div className="flex justify-between items-start mb-2">
+                                <span className="text-sm text-gray-500">{order.date}</span>
+                                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getStatusColor(order.status)}`}>
+                                    {order.status}
+                                </span>
+                            </div>
+                            <h3 className="font-bold text-gray-800">{order.title}</h3>
+                            {order.petName && <p className="text-sm text-gray-600">Pet: {order.petName}</p>}
+                            <div className="flex justify-between items-center mt-3">
+                                <span className="font-bold text-purple-600">${order.price}</span>
+                                <span className="text-sm text-gray-500">{order.id}</span>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+        </div>
+    );
+};
+
+const OrderDetailPage: React.FC<{
+    order: Order | null;
+    onBack: () => void;
+}> = ({ order, onBack }) => {
+    if (!order) {
+        return (
+            <div className="text-center p-8">
+                <p>Order not found.</p>
+                <button onClick={onBack} className="mt-4 text-purple-600 font-semibold">Go Back</button>
+            </div>
+        );
+    }
+
+    const getStatusColor = (status: string) => {
+        switch(status) {
+            case 'Pending Payment': return 'bg-orange-100 text-orange-600';
+            case 'In Service': return 'bg-blue-100 text-blue-600';
+            case 'Pending Confirm': return 'bg-purple-100 text-purple-600';
+            case 'Completed': return 'bg-green-100 text-green-600';
+            default: return 'bg-gray-100 text-gray-600';
+        }
+    };
+
+    const steps = [
+        { status: 'Pending Payment', label: 'Order Placed', completed: true },
+        { status: 'In Service', label: 'In Progress', completed: order.status !== 'Pending Payment' },
+        { status: 'Pending Confirm', label: 'Complete', completed: order.status === 'Completed' || order.status === 'Pending Confirm' },
+    ];
+
+    return (
+        <div className="max-w-2xl mx-auto">
+            <div className="flex items-center mb-6">
+                <button onClick={onBack} className="flex items-center text-gray-600 hover:text-purple-600 font-semibold">
+                    <ArrowLeftIcon className="w-5 h-5 mr-1" />
+                    Back
+                </button>
+                <h1 className="text-2xl font-bold text-gray-800 ml-4">Order Details</h1>
+            </div>
+            <div className="bg-white rounded-2xl shadow-md overflow-hidden">
+                <div className="p-4 border-b">
+                    <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-500">{order.id}</span>
+                        <span className={`text-sm font-semibold px-3 py-1 rounded-full ${getStatusColor(order.status)}`}>
+                            {order.status}
+                        </span>
+                    </div>
+                </div>
+                <div className="p-6 space-y-4">
+                    <div>
+                        <h2 className="text-xl font-bold text-gray-800">{order.title}</h2>
+                        {order.petName && <p className="text-gray-600 mt-1">Pet Name: {order.petName}</p>}
+                        {order.desc && <p className="text-gray-500 mt-2">{order.desc}</p>}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                        <div>
+                            <p className="text-sm text-gray-500">Date</p>
+                            <p className="font-medium">{order.date}</p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-gray-500">Type</p>
+                            <p className="font-medium">{order.type}</p>
+                        </div>
+                    </div>
+                    <div className="pt-4 border-t">
+                        <div className="flex justify-between items-center">
+                            <span className="font-bold text-gray-800">Total</span>
+                            <span className="text-2xl font-bold text-purple-600">${order.price}</span>
+                        </div>
+                    </div>
+                    <div className="pt-4 border-t">
+                        <p className="text-sm text-gray-500 mb-3">Order Progress</p>
+                        <div className="flex items-center justify-between">
+                            {steps.map((step, index) => (
+                                <div key={step.status} className="flex flex-col items-center">
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                        step.completed ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-500'
+                                    }`}>
+                                        {step.completed ? '✓' : index + 1}
+                                    </div>
+                                    <span className="text-xs mt-1 text-gray-600">{step.label}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+                <div className="p-4 border-t bg-gray-50 flex gap-3">
+                    {order.status === 'Pending Payment' && (
+                        <>
+                            <button className="flex-1 py-3 bg-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-300 transition-colors">
+                                Cancel Order
+                            </button>
+                            <button className="flex-1 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors">
+                                Pay Now
+                            </button>
+                        </>
+                    )}
+                    {order.status === 'Pending Confirm' && (
+                        <button className="flex-1 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors">
+                            Confirm Completion
+                        </button>
+                    )}
+                    {order.status === 'Completed' && (
+                        <button className="flex-1 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors">
+                            Leave Review
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const NotificationsPage: React.FC<{
+    notifications: Notification[];
+    onBack: () => void;
+    onMarkRead: (id: number) => void;
+    onDelete: (id: number) => void;
+    onMarkAllRead: () => void;
+}> = ({ notifications, onBack, onMarkRead, onDelete, onMarkAllRead }) => {
+    const [activeTab, setActiveTab] = React.useState('All');
+    const tabs = ['All', 'system', 'order', 'community'];
+
+    const filteredNotifications = activeTab === 'All' 
+        ? notifications 
+        : notifications.filter(n => n.type === activeTab);
+
+    const getIcon = (type: string) => {
+        switch(type) {
+            case 'order': return '📦';
+            case 'community': return '💬';
+            default: return '🔔';
+        }
+    };
+
+    return (
+        <div className="max-w-2xl mx-auto">
+            <div className="flex items-center justify-between mb-6">
+                <button onClick={onBack} className="flex items-center text-gray-600 hover:text-purple-600 font-semibold">
+                    <ArrowLeftIcon className="w-5 h-5 mr-1" />
+                    Back
+                </button>
+                <h1 className="text-2xl font-bold text-gray-800">Notifications</h1>
+                {notifications.some(n => !n.read) && (
+                    <button onClick={onMarkAllRead} className="text-purple-600 text-sm font-medium">
+                        Mark All Read
+                    </button>
+                )}
+            </div>
+            <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+                {tabs.map(tab => (
+                    <button 
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`px-4 py-2 rounded-full text-sm font-medium capitalize transition-colors ${
+                            activeTab === tab 
+                            ? 'bg-purple-600 text-white' 
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                    >
+                        {tab}
+                    </button>
+                ))}
+            </div>
+            <div className="space-y-3">
+                {filteredNotifications.length === 0 ? (
+                    <div className="bg-white rounded-2xl shadow-md p-8 text-center">
+                        <p className="text-gray-500">No notifications</p>
+                    </div>
+                ) : (
+                    filteredNotifications.map(notification => (
+                        <div 
+                            key={notification.id}
+                            onClick={() => !notification.read && onMarkRead(notification.id)}
+                            className={`bg-white rounded-2xl shadow-md p-4 cursor-pointer transition-all ${
+                                !notification.read ? 'border-l-4 border-purple-500' : ''
+                            }`}
+                        >
+                            <div className="flex items-start gap-3">
+                                <span className="text-2xl">{getIcon(notification.type)}</span>
+                                <div className="flex-grow">
+                                    <div className="flex justify-between items-start">
+                                        <h3 className={`font-semibold ${!notification.read ? 'text-gray-800' : 'text-gray-600'}`}>
+                                            {notification.title}
+                                        </h3>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); onDelete(notification.id); }}
+                                            className="text-gray-400 hover:text-red-500 p-1"
+                                        >
+                                            <XIcon className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                    <p className="text-sm text-gray-600 mt-1">{notification.message}</p>
+                                    <p className="text-xs text-gray-400 mt-2">{notification.date}</p>
+                                </div>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+        </div>
+    );
+};
+
+const SettingsPage: React.FC<{
+    settings: UserSettings;
+    onBack: () => void;
+    onUpdate: (key: keyof UserSettings, value: any) => void;
+}> = ({ settings, onBack, onUpdate }) => {
+    return (
+        <div className="max-w-2xl mx-auto">
+            <div className="flex items-center mb-6">
+                <button onClick={onBack} className="flex items-center text-gray-600 hover:text-purple-600 font-semibold">
+                    <ArrowLeftIcon className="w-5 h-5 mr-1" />
+                    Back
+                </button>
+                <h1 className="text-2xl font-bold text-gray-800 ml-4">Settings</h1>
+            </div>
+            <div className="bg-white rounded-2xl shadow-md overflow-hidden">
+                <div className="p-4 border-b">
+                    <h2 className="font-bold text-gray-800">Preferences</h2>
+                </div>
+                <div className="divide-y">
+                    <div className="p-4 flex justify-between items-center">
+                        <div>
+                            <p className="font-medium text-gray-800">Push Notifications</p>
+                            <p className="text-sm text-gray-500">Receive notifications about your orders</p>
+                        </div>
+                        <button 
+                            onClick={() => onUpdate('notifications', !settings.notifications)}
+                            className={`w-12 h-6 rounded-full transition-colors relative ${settings.notifications ? 'bg-purple-600' : 'bg-gray-300'}`}
+                        >
+                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                                settings.notifications ? 'left-7' : 'left-1'
+                            }`} />
+                        </button>
+                    </div>
+                    <div className="p-4 flex justify-between items-center">
+                        <div>
+                            <p className="font-medium text-gray-800">Email Updates</p>
+                            <p className="text-sm text-gray-500">Receive promotional emails</p>
+                        </div>
+                        <button 
+                            onClick={() => onUpdate('emailUpdates', !settings.emailUpdates)}
+                            className={`w-12 h-6 rounded-full transition-colors relative ${settings.emailUpdates ? 'bg-purple-600' : 'bg-gray-300'}`}
+                        >
+                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                                settings.emailUpdates ? 'left-7' : 'left-1'
+                            }`} />
+                        </button>
+                    </div>
+                    <div className="p-4 flex justify-between items-center">
+                        <div>
+                            <p className="font-medium text-gray-800">Language</p>
+                            <p className="text-sm text-gray-500">Choose your preferred language</p>
+                        </div>
+                        <select 
+                            value={settings.language}
+                            onChange={(e) => onUpdate('language', e.target.value)}
+                            className="border border-gray-300 rounded-lg px-3 py-2 text-gray-700 focus:ring-purple-500 focus:border-purple-500"
+                        >
+                            <option value="English">English</option>
+                            <option value="中文">中文</option>
+                        </select>
+                    </div>
+                    <div className="p-4 flex justify-between items-center">
+                        <div>
+                            <p className="font-medium text-gray-800">Privacy</p>
+                            <p className="text-sm text-gray-500">Control who can see your profile</p>
+                        </div>
+                        <select 
+                            value={settings.privacy}
+                            onChange={(e) => onUpdate('privacy', e.target.value)}
+                            className="border border-gray-300 rounded-lg px-3 py-2 text-gray-700 focus:ring-purple-500 focus:border-purple-500"
+                        >
+                            <option value="public">Public</option>
+                            <option value="friends">Friends Only</option>
+                            <option value="private">Private</option>
+                        </select>
+                    </div>
+                </div>
+                <div className="p-4 border-t">
+                    <button className="w-full py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition-colors">
+                        Clear Cache
+                    </button>
+                </div>
+            </div>
+            <div className="mt-6 bg-white rounded-2xl shadow-md p-4">
+                <button className="w-full py-3 bg-red-500 text-white font-semibold rounded-xl hover:bg-red-600 transition-colors">
+                    Sign Out
+                </button>
+            </div>
+        </div>
+    );
+};
+
+const InvoicesPage: React.FC<{
+    invoices: Invoice[];
+    onBack: () => void;
+}> = ({ invoices, onBack }) => {
+    return (
+        <div className="max-w-2xl mx-auto">
+            <div className="flex items-center mb-6">
+                <button onClick={onBack} className="flex items-center text-gray-600 hover:text-purple-600 font-semibold">
+                    <ArrowLeftIcon className="w-5 h-5 mr-1" />
+                    Back
+                </button>
+                <h1 className="text-2xl font-bold text-gray-800 ml-4">Invoices</h1>
+            </div>
+            <div className="bg-white rounded-2xl shadow-md p-4 mb-4">
+                <button className="w-full py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors flex items-center justify-center">
+                    <PlusIcon className="w-5 h-5 mr-2" />
+                    Request Invoice
+                </button>
+            </div>
+            <div className="space-y-3">
+                {invoices.map(invoice => (
+                    <div key={invoice.id} className="bg-white rounded-2xl shadow-md p-4">
+                        <div className="flex justify-between items-start mb-2">
+                            <span className="text-sm text-gray-500">{invoice.date}</span>
+                            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                                invoice.status === 'issued' ? 'bg-green-100 text-green-600' : 'bg-yellow-100 text-yellow-600'
+                            }`}>
+                                {invoice.status}
+                            </span>
+                        </div>
+                        <h3 className="font-bold text-gray-800">{invoice.title}</h3>
+                        <div className="flex justify-between items-center mt-3">
+                            <span className="font-bold text-purple-600">${invoice.amount}</span>
+                            <button className="text-purple-600 text-sm font-medium hover:text-purple-700">
+                                View Details
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const JobsPage: React.FC<{
+    jobs: Job[];
+    onBack: () => void;
+}> = ({ jobs, onBack }) => {
+    return (
+        <div className="max-w-2xl mx-auto">
+            <div className="flex items-center mb-6">
+                <button onClick={onBack} className="flex items-center text-gray-600 hover:text-purple-600 font-semibold">
+                    <ArrowLeftIcon className="w-5 h-5 mr-1" />
+                    Back
+                </button>
+                <h1 className="text-2xl font-bold text-gray-800 ml-4">Job Opportunities</h1>
+            </div>
+            <div className="space-y-4">
+                {jobs.map(job => (
+                    <div key={job.id} className="bg-white rounded-2xl shadow-md p-6">
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <h3 className="font-bold text-gray-800 text-lg">{job.title}</h3>
+                                <p className="text-gray-500 mt-1">{job.location} • {job.type}</p>
+                                <p className="text-purple-600 font-semibold mt-2">{job.salary}</p>
+                            </div>
+                            <span className="text-3xl">🐾</span>
+                        </div>
+                        <p className="text-gray-600 mt-4 text-sm">{job.description}</p>
+                        <button className="w-full mt-4 py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors">
+                            Apply Now
+                        </button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const StoreApplicationPage: React.FC<{
+    onBack: () => void;
+    onSubmit: (data: any) => void;
+}> = ({ onBack, onSubmit }) => {
+    const [formData, setFormData] = React.useState({
+        name: '',
+        phone: '',
+        address: '',
+        note: ''
+    });
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!formData.name || !formData.phone || !formData.address) {
+            alert('Please fill in all required fields');
+            return;
+        }
+        onSubmit(formData);
+    };
+
+    return (
+        <div className="max-w-2xl mx-auto">
+            <div className="flex items-center mb-6">
+                <button onClick={onBack} className="flex items-center text-gray-600 hover:text-purple-600 font-semibold">
+                    <ArrowLeftIcon className="w-5 h-5 mr-1" />
+                    Back
+                </button>
+                <h1 className="text-2xl font-bold text-gray-800 ml-4">Apply to Open a Store</h1>
+            </div>
+            <div className="bg-white rounded-2xl shadow-md p-6">
+                <div className="text-center mb-6">
+                    <StoreIcon className="w-16 h-16 text-purple-500 mx-auto mb-3" />
+                    <h2 className="text-xl font-bold text-gray-800">Join Petner Network</h2>
+                    <p className="text-gray-500 mt-2">Start your own pet memorial business with our support</p>
+                </div>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Your Name *</label>
+                        <input 
+                            type="text"
+                            value={formData.name}
+                            onChange={(e) => setFormData({...formData, name: e.target.value})}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
+                            placeholder="Enter your name"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number *</label>
+                        <input 
+                            type="tel"
+                            value={formData.phone}
+                            onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
+                            placeholder="Enter your phone"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Location *</label>
+                        <input 
+                            type="text"
+                            value={formData.address}
+                            onChange={(e) => setFormData({...formData, address: e.target.value})}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
+                            placeholder="Enter city/address"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Additional Notes</label>
+                        <textarea 
+                            value={formData.note}
+                            onChange={(e) => setFormData({...formData, note: e.target.value})}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
+                            rows={3}
+                            placeholder="Any additional information"
+                        />
+                    </div>
+                    <button type="submit" className="w-full py-3 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors">
+                        Submit Application
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+const PetCredentialsPage: React.FC<{
+    credentials: PetCredential[];
+    onBack: () => void;
+}> = ({ credentials, onBack }) => {
+    return (
+        <div className="max-w-2xl mx-auto">
+            <div className="flex items-center mb-6">
+                <button onClick={onBack} className="flex items-center text-gray-600 hover:text-purple-600 font-semibold">
+                    <ArrowLeftIcon className="w-5 h-5 mr-1" />
+                    Back
+                </button>
+                <h1 className="text-2xl font-bold text-gray-800 ml-4">Pet Memorial Credentials</h1>
+            </div>
+            <div className="space-y-4">
+                {credentials.map(cred => (
+                    <div key={cred.id} className="bg-white rounded-2xl shadow-md overflow-hidden">
+                        <div className="flex">
+                            <img src={cred.petAvatar} alt={cred.petName} className="w-24 h-24 object-cover" />
+                            <div className="p-4 flex-grow">
+                                <h3 className="font-bold text-gray-800 text-lg">{cred.petName}</h3>
+                                <p className="text-purple-600 font-medium">{cred.service}</p>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    {cred.startDate} ~ {cred.endDate}
+                                </p>
+                                <button className="mt-3 text-purple-600 text-sm font-medium hover:text-purple-700 flex items-center">
+                                    View Certificate <ChevronRightIcon className="w-4 h-4 ml-1" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = React.useState(false);
   const [activePage, setActivePage] = React.useState<Page>('Home');
@@ -1130,12 +1741,10 @@ const App: React.FC = () => {
   const [history, setHistory] = React.useState<{ page: Page; data: any }[]>([]);
 
   const [posts, setPosts] = React.useState<Post[]>([
-    { id: 1, emoji: "🌈", title: "Crossed the rainbow bridge today. Miss you, buddy.", user: "Sarah", likes: 12, avatar: "https://i.pravatar.cc/150?u=sarah", comments: [] },
-    // Fix: Add missing emoji property
-    { id: 2, emoji: "❤️", image: "https://placedog.net/500/500?id=45", title: "Our sweet boy, Max. We'll never forget your cuddles.", user: "John D.", likes: 45, avatar: "https://i.pravatar.cc/150?u=john", comments: [] },
-    // Fix: Add missing emoji property
-    { id: 3, emoji: "❤️", image: "https://loremflickr.com/500/500/cat?lock=12", title: "Found her favorite toy today and couldn't stop crying.", user: "Emily", likes: 33, avatar: "https://i.pravatar.cc/150?u=emily", comments: [] },
-    { id: 4, emoji: "🕊️", title: "Fly high, sweet angel.", user: "Mike", likes: 21, avatar: "https://i.pravatar.cc/150?u=mike", comments: [] },
+    { id: 1, emoji: "🌈", title: "Crossed the rainbow bridge today. Miss you, buddy.", user: "Sarah", userId: "user-sarah", likes: 12, likedBy: [], avatar: "https://i.pravatar.cc/150?u=sarah", comments: [] },
+    { id: 2, emoji: "❤️", image: "https://placedog.net/500/500?id=45", title: "Our sweet boy, Max. We'll never forget your cuddles.", user: "John D.", userId: "user-john", likes: 45, likedBy: [], avatar: "https://i.pravatar.cc/150?u=john", comments: [] },
+    { id: 3, emoji: "❤️", image: "https://loremflickr.com/500/500/cat?lock=12", title: "Found her favorite toy today and couldn't stop crying.", user: "Emily", userId: "user-emily", likes: 33, likedBy: [], avatar: "https://i.pravatar.cc/150?u=emily", comments: [] },
+    { id: 4, emoji: "🕊️", title: "Fly high, sweet angel.", user: "Mike", userId: "user-mike", likes: 21, likedBy: [], avatar: "https://i.pravatar.cc/150?u=mike", comments: [] },
   ]);
 
   const [memorials, setMemorials] = React.useState<Memorial[]>([
@@ -1165,12 +1774,52 @@ const App: React.FC = () => {
       candles: 0,
       tributes: [],
     }
-  ]);
+   ]);
 
   const [cart, setCart] = React.useState<Product[]>([]);
   const [isCartOpen, setIsCartOpen] = React.useState(false);
 
   const currentUser = { name: "Jessica Smith", id: "U-182374", avatar: "https://i.pravatar.cc/150?u=jessica" };
+
+  const [orders, setOrders] = React.useState<Order[]>([
+    { id: 'ORD-20240115-001', date: '2024-01-15', title: 'Basic Farewell', price: 120, status: 'Pending Payment', type: 'Service', petName: '小白', desc: 'Individual cremation service with urn bag' },
+    { id: 'ORD-20240110-002', date: '2024-01-10', title: 'Premium Memorial', price: 280, status: 'In Service', type: 'Service', petName: '豆豆', desc: 'Premium urn with memorial certificate' },
+    { id: 'ORD-20240105-003', date: '2024-01-05', title: 'Pet Ashes Necklace', price: 65, status: 'Completed', type: 'Product', desc: 'Beautiful glass pendant to keep your pet close' },
+    { id: 'ORD-20240103-004', date: '2024-01-03', title: 'Eternal Tribute', price: 580, status: 'Pending Confirm', type: 'Service', petName: '毛毛', desc: 'VIP service with custom urn and multiple keepsakes' },
+  ]);
+
+  const [notifications, setNotifications] = React.useState<Notification[]>([
+    { id: 1, title: 'Order Confirmed', message: 'Your service has been confirmed and is being processed', date: '10 minutes ago', read: false, type: 'order' },
+    { id: 2, title: 'New Comment', message: 'Sarah commented on your memorial post', date: '1 hour ago', read: false, type: 'community' },
+    { id: 3, title: 'Service Complete', message: 'Your pet\'s memorial service is complete', date: '2 hours ago', read: true, type: 'order' },
+    { id: 4, title: 'System Maintenance', message: 'App will undergo maintenance tonight', date: '1 day ago', read: true, type: 'system' },
+    { id: 5, title: 'New Follower', message: 'John D. started following you', date: '2 days ago', read: true, type: 'community' },
+  ]);
+
+  const [userSettings, setUserSettings] = React.useState<UserSettings>({
+    notifications: true,
+    emailUpdates: false,
+    language: 'English',
+    privacy: 'public'
+  });
+
+  const [storeApplications, setStoreApplications] = React.useState<StoreApplication[]>([]);
+
+  const jobs: Job[] = [
+    { id: 1, title: 'Pet Funeral Director', location: 'Suzhou', type: 'Full-time', salary: '8K-12K', description: 'Lead our compassionate team in providing dignified pet memorial services.' },
+    { id: 2, title: 'Customer Service Specialist', location: 'Suzhou', type: 'Full-time', salary: '5K-8K', description: 'Support grieving pet owners with empathy and professionalism.' },
+    { id: 3, title: 'Pet Cremation Technician', location: 'Shanghai', type: 'Full-time', salary: '6K-10K', description: 'Perform respectful cremation services with attention to detail.' },
+  ];
+
+  const petCredentials: PetCredential[] = [
+    { id: 1, petName: 'Buddy', petAvatar: 'https://placedog.net/500/500?id=10', service: 'Basic Farewell', startDate: '2010-05-20', endDate: '2024-01-10' },
+    { id: 2, petName: 'Mittens', petAvatar: 'https://loremflickr.com/500/500/cat?lock=20', service: 'Premium Memorial', startDate: '2015-02-14', endDate: '2024-01-05' },
+  ];
+
+  const invoices: Invoice[] = [
+    { id: 'INV-001', orderId: 'ORD-20240105-003', date: '2024-01-05', title: 'Pet Ashes Necklace', amount: 65, status: 'issued' },
+    { id: 'INV-002', orderId: 'ORD-20231220-000', date: '2023-12-20', title: 'Premium Memorial', amount: 280, status: 'issued' },
+  ];
 
   const handlePageChange = (page: Page, data: any = null) => {
     if (activePage === page) return;
@@ -1203,9 +1852,71 @@ const App: React.FC = () => {
   };
   
   const handleLike = (postId: number) => {
-    setPosts(posts.map(p => p.id === postId ? { ...p, likes: p.likes + 1 } : p));
+    const userId = currentUser.id;
+    setPosts(posts.map(post => {
+      if (post.id !== postId) return post;
+      
+      const isLiked = post.likedBy.includes(userId);
+      const updatedLikedBy = isLiked
+        ? post.likedBy.filter(id => id !== userId)
+        : [...post.likedBy, userId];
+      
+      return {
+        ...post,
+        likes: updatedLikedBy.length,
+        likedBy: updatedLikedBy
+      };
+    }));
   };
   
+  const [deleteConfirmPostId, setDeleteConfirmPostId] = React.useState<number | null>(null);
+
+  const handleDeletePost = (postId: number) => {
+    setPosts(posts.filter(p => p.id !== postId));
+    handlePageChange('Community');
+  };
+
+  const confirmDeletePost = () => {
+    if (deleteConfirmPostId !== null) {
+      handleDeletePost(deleteConfirmPostId);
+      setDeleteConfirmPostId(null);
+    }
+  };
+
+  const handleMarkNotificationRead = (id: number) => {
+    setNotifications(notifications.map(n => n.id === id ? { ...n, read: true } : n));
+  };
+
+  const handleDeleteNotification = (id: number) => {
+    setNotifications(notifications.filter(n => n.id !== id));
+  };
+
+  const handleMarkAllNotificationsRead = () => {
+    setNotifications(notifications.map(n => ({ ...n, read: true })));
+  };
+
+  const handleUpdateSettings = (key: keyof UserSettings, value: any) => {
+    setUserSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleStoreApplication = (data: Omit<StoreApplication, 'id' | 'status' | 'date'>) => {
+    const newApplication: StoreApplication = {
+      ...data,
+      id: Date.now(),
+      status: 'pending',
+      date: new Date().toISOString().split('T')[0]
+    };
+    setStoreApplications([...storeApplications, newApplication]);
+    alert('Application submitted successfully! We will contact you soon.');
+    handlePageChange('Profile');
+  };
+
+  const handleLogout = () => {
+    if (confirm('Are you sure you want to log out?')) {
+      window.location.reload();
+    }
+  };
+
   const handleAddComment = (postId: number, text: string) => {
     const newComment: Comment = { user: currentUser.name, avatar: currentUser.avatar, text };
     const updatedPosts = posts.map(p => p.id === postId ? { ...p, comments: [...p.comments, newComment] } : p);
@@ -1222,8 +1933,10 @@ const App: React.FC = () => {
         image: post.image,
         emoji: "❤️",
         user: currentUser.name,
+        userId: currentUser.id,
         avatar: currentUser.avatar,
         likes: 0,
+        likedBy: [],
         comments: [],
     };
     setPosts([newPost, ...posts]);
@@ -1245,16 +1958,36 @@ const App: React.FC = () => {
       case 'Services': return <ServicesPage setActivePage={handlePageChange} />;
       case 'Shop': return <ShopPage onAddToCart={(p) => setCart([...cart, p])} />;
       case 'Community': return <CommunityPage setActivePage={handlePageChange} posts={posts} onPostSelect={(post) => handlePageChange('PostDetail', { post })} />;
-      case 'Profile': return <ProfilePage setActivePage={handlePageChange} user={currentUser} />;
+      case 'Profile': return <ProfilePage setActivePage={handlePageChange} user={currentUser} orders={orders} />;
       case 'Upload': return <UploadPage setActivePage={handlePageChange} onPublish={handlePublishPost} />;
       case 'PostDetail':
-        // Fix: Use find to get the live post object instead of relying on stale pageData.post
-        // This ensures that likes and comments are updated immediately in the UI
         const currentPost = posts.find(p => p.id === pageData?.post?.id);
         return <PostDetailPage post={currentPost || pageData?.post} onBack={() => handlePageChange('Community')} onLike={handleLike} onAddComment={handleAddComment} />;
       case 'PetAICompanion': return <PetAICompanionPage setActivePage={handlePageChange} />;
       case 'Memorials': return <MemorialsPage setActivePage={handlePageChange} memorials={memorials} />;
       case 'MemorialDetail': return <MemorialDetailPage memorial={pageData?.memorial} onBack={() => handlePageChange('Memorials')} />;
+      case 'CreateMemorial': return <CreateMemorialPage onSave={handleSaveMemorial} onCancel={() => handlePageChange('Memorials')} />;
+      case 'AboutUs': return <AboutUsPage />;
+      case 'ServiceDetail': 
+        return <ServiceDetailPage 
+            service={pageData?.service} 
+            onBack={() => handlePageChange('Services')} 
+            onAddToCart={(product) => {
+                setCart(currentCart => [...currentCart, product]);
+                setIsCartOpen(true);
+            }}
+        />;
+      case 'Orders': return <OrdersPage orders={orders} onBack={() => handlePageChange('Profile')} onOrderSelect={(order) => handlePageChange('OrderDetail', { order })} />;
+      case 'OrderDetail': return <OrderDetailPage order={pageData?.order} onBack={() => handlePageChange('Orders')} />;
+      case 'Notifications': return <NotificationsPage notifications={notifications} onBack={() => handlePageChange('Profile')} onMarkRead={handleMarkNotificationRead} onDelete={handleDeleteNotification} onMarkAllRead={handleMarkAllNotificationsRead} />;
+      case 'Settings': return <SettingsPage settings={userSettings} onBack={() => handlePageChange('Profile')} onUpdate={handleUpdateSettings} />;
+      case 'Invoices': return <InvoicesPage invoices={invoices} onBack={() => handlePageChange('Profile')} />;
+      case 'Jobs': return <JobsPage jobs={jobs} onBack={() => handlePageChange('Profile')} />;
+      case 'StoreApplication': return <StoreApplicationPage onBack={() => handlePageChange('Profile')} onSubmit={handleStoreApplication} />;
+      case 'PetCredentials': return <PetCredentialsPage credentials={petCredentials} onBack={() => handlePageChange('Profile')} />;
+      default: return <HomePage setActivePage={handlePageChange} />;
+    }
+  };
       case 'CreateMemorial': return <CreateMemorialPage onSave={handleSaveMemorial} onCancel={() => handlePageChange('Memorials')} />;
       case 'AboutUs': return <AboutUsPage />;
       case 'ServiceDetail': 
@@ -1279,6 +2012,18 @@ const App: React.FC = () => {
         cart={cart}
         onRemoveFromCart={handleRemoveFromCart}
       />
+      {deleteConfirmPostId !== null && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setDeleteConfirmPostId(null)}>
+          <div className="bg-white rounded-xl p-6 mx-4 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">Confirm Delete</h3>
+            <p className="text-gray-600 mb-6">Are you sure you want to delete this post? This action cannot be undone.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteConfirmPostId(null)} className="flex-1 py-2.5 px-4 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors">Cancel</button>
+              <button onClick={confirmDeletePost} className="flex-1 py-2.5 px-4 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
       <main className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
         {activePage !== 'Home' && (
             <button 
