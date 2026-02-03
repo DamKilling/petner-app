@@ -1,5 +1,5 @@
 import React from 'react';
-import { Page, Post, Comment, Product, Memorial, MAX_DAILY_LIKES, UserLikeStats } from './types';
+import { Page, Post, Comment, Product, Memorial, Order, MAX_DAILY_LIKES, UserLikeStats } from './types';
 import BottomNav from './BottomNav';
 import {
   CalendarIcon, PawIcon, LocationPinIcon, HeartIcon, InfoIcon, UsersIcon, CheckCircleIcon, DiamondIcon, UrnIcon, CandleIcon,
@@ -187,26 +187,7 @@ const ServicesPage: React.FC<{
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-4">
                 {services.map(service => {
                     const isSelected = selectedService === service.title;
-  const handleCheckout = (checkoutCart: Product[], paymentMethod: string) => {
-    const newOrder: Order = {
-        id: `ORD-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
-        date: new Date().toISOString().split('T')[0],
-        title: `Order with ${checkoutCart.length} item${checkoutCart.length > 1 ? 's' : ''}`,
-        price: checkoutCart.reduce((total, item) => total + item.price, 0),
-        status: 'Pending Payment',
-        type: 'Product',
-        desc: checkoutCart.map(item => item.name).join(', ')
-    };
-    setOrders(prev => [newOrder, ...prev]);
-    setCart([]);
-    setIsCartOpen(false);
-    alert(`Order placed successfully! Order ID: ${newOrder.id}\nPayment Method: ${paymentMethod}`);
-    handlePageChange('Orders');
-  };
-
-  return (
-                        <div 
-                            key={service.title} 
+                    return ( 
                             onClick={() => setSelectedService(service.title)}
                             className={`bg-white p-6 rounded-2xl shadow-lg relative flex flex-col cursor-pointer transition-all duration-300 ${
                                 isSelected ? 'border-2 border-purple-500 ring-2 ring-purple-200' : 
@@ -1031,10 +1012,13 @@ const MemorialsPage: React.FC<{
         {memorials.map((memorial) => (
           <div key={memorial.id} onClick={() => setActivePage('MemorialDetail', { memorial })} className="bg-white rounded-2xl shadow-lg overflow-hidden cursor-pointer transform hover:-translate-y-2 transition-transform duration-300">
             <img src={memorial.petAvatar} alt={memorial.petName} className="w-full h-56 object-cover" />
-            <div className="p-4">
-              <h3 className="text-xl font-bold text-gray-800">{memorial.petName}</h3>
-              <p className="text-gray-500 text-sm">Forever in our hearts</p>
-            </div>
+                    <div className="p-4">
+                    <div className="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <CheckCircleIcon className="w-8 h-8 text-purple-600" />
+                    </div>
+                    <h3 className="font-bold text-gray-800">Certified Service</h3>
+                    <p className="text-sm text-gray-500 mt-1">Fully certified professionals you can trust</p>
+                  </div>
           </div>
         ))}
       </div>
@@ -1175,10 +1159,10 @@ const App: React.FC = () => {
   const [history, setHistory] = React.useState<{ page: Page; data: any }[]>([]);
 
   const [posts, setPosts] = React.useState<Post[]>([
-    { id: 1, emoji: "🌈", title: "Crossed the rainbow bridge today. Miss you, buddy.", user: "Sarah", likes: 12, avatar: "https://i.pravatar.cc/150?u=sarah", comments: [] },
-    { id: 2, emoji: "❤️", image: "https://placedog.net/500/500?id=45", title: "Our sweet boy, Max. We'll never forget your cuddles.", user: "John D.", likes: 45, avatar: "https://i.pravatar.cc/150?u=john", comments: [] },
-    { id: 3, emoji: "❤️", image: "https://loremflickr.com/500/500/cat?lock=12", title: "Found her favorite toy today and couldn't stop crying.", user: "Emily", likes: 33, avatar: "https://i.pravatar.cc/150?u=emily", comments: [] },
-    { id: 4, emoji: "🕊️", title: "Fly high, sweet angel.", user: "Mike", likes: 21, avatar: "https://i.pravatar.cc/150?u=mike", comments: [] },
+    { id: 1, emoji: "🌈", title: "Crossed the rainbow bridge today. Miss you, buddy.", user: "Sarah", userId: "user-sarah", likes: 12, likedBy: [], avatar: "https://i.pravatar.cc/150?u=sarah", comments: [] },
+    { id: 2, emoji: "❤️", image: "https://placedog.net/500/500?id=45", title: "Our sweet boy, Max. We'll never forget your cuddles.", user: "John D.", userId: "user-john", likes: 45, likedBy: [], avatar: "https://i.pravatar.cc/150?u=john", comments: [] },
+    { id: 3, emoji: "❤️", image: "https://loremflickr.com/500/500/cat?lock=12", title: "Found her favorite toy today and couldn't stop crying.", user: "Emily", userId: "user-emily", likes: 33, likedBy: [], avatar: "https://i.pravatar.cc/150?u=emily", comments: [] },
+    { id: 4, emoji: "🕊️", title: "Fly high, sweet angel.", user: "Mike", userId: "user-mike", likes: 21, likedBy: [], avatar: "https://i.pravatar.cc/150?u=mike", comments: [] },
   ]);
 
   const [memorials, setMemorials] = React.useState<Memorial[]>([
@@ -1247,6 +1231,23 @@ const App: React.FC = () => {
   
   const handleRemoveFromCart = (indexToRemove: number) => {
     setCart(currentCart => currentCart.filter((_, index) => index !== indexToRemove));
+  };
+
+  const handleCheckout = (checkoutCart: Product[], paymentMethod: string) => {
+    const newOrder: Order = {
+        id: `ORD-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
+        date: new Date().toISOString().split('T')[0],
+        title: `Order with ${checkoutCart.length} item${checkoutCart.length > 1 ? 's' : ''}`,
+        price: checkoutCart.reduce((total, item) => total + item.price, 0),
+        status: 'Pending Payment',
+        type: 'Product',
+        desc: checkoutCart.map(item => item.name).join(', ')
+    };
+    setOrders(prev => [newOrder, ...prev]);
+    setCart([]);
+    setIsCartOpen(false);
+    alert(`Order placed successfully! Order ID: ${newOrder.id}\nPayment Method: ${paymentMethod}`);
+    handlePageChange('Orders');
   };
   
   const handleLike = (postId: number) => {
@@ -1318,8 +1319,10 @@ const App: React.FC = () => {
         image: post.image,
         emoji: "❤️",
         user: currentUser.name,
+        userId: currentUser.id,
         avatar: currentUser.avatar,
         likes: 0,
+        likedBy: [],
         comments: [],
     };
     setPosts([newPost, ...posts]);
