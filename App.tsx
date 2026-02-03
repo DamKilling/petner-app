@@ -187,7 +187,9 @@ const ServicesPage: React.FC<{
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-4">
                 {services.map(service => {
                     const isSelected = selectedService === service.title;
-                    return ( 
+                    return (
+                        <div 
+                            key={service.title} 
                             onClick={() => setSelectedService(service.title)}
                             className={`bg-white p-6 rounded-2xl shadow-lg relative flex flex-col cursor-pointer transition-all duration-300 ${
                                 isSelected ? 'border-2 border-purple-500 ring-2 ring-purple-200' : 

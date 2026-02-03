@@ -621,7 +621,8 @@ const CommunityPage: React.FC<{
     setActivePage: (page: Page) => void;
     posts: Post[];
     onPostSelect: (post: Post) => void;
-}> = ({ setActivePage, posts, onPostSelect }) => {
+    currentUser: { name: string; id: string; avatar: string };
+}> = ({ setActivePage, posts, onPostSelect, currentUser }) => {
     const [activeTab, setActiveTab] = React.useState('Discover');
 
     const filteredPosts = React.useMemo(() => {
@@ -703,8 +704,8 @@ const CommunityPage: React.FC<{
 };
 
 const ProfilePage: React.FC<{ 
-    setActivePage: (page: Page) => void;
-    user: { name: string; id: string; avatar: string; };
+    setActivePage: (page: Page, data?: any) => void;
+    user: { name: string; id: string; avatar: string };
     orders: Order[];
 }> = ({ setActivePage, user, orders }) => {
     const pendingPaymentCount = orders.filter(o => o.status === 'Pending Payment').length;
@@ -2058,6 +2059,15 @@ const App: React.FC = () => {
       return <LoginPage onLogin={handleLogin} />;
   }
 
+  const [activePage, setActivePage] = React.useState<Page>('Home');
+  const [pageData, setPageData] = React.useState<any>(null);
+  const [history, setHistory] = React.useState<{ page: Page; data: any }[]>([]);
+  const [posts, setPosts] = React.useState<Post[]>([
+    { id: 1, emoji: "🌈", title: "Crossed the rainbow bridge today. Miss you, buddy.", user: "Sarah", userId: "user-sarah", likes: 12, likedBy: [], avatar: "https://i.pravatar.cc/150?u=sarah", comments: [], location: "Suzhou Industrial Park" },
+    { id: 2, emoji: "❤️", image: "https://placedog.net/500/500?id=45", title: "Our sweet boy, Max. We'll never forget your cuddles.", user: "John D.", userId: "user-john", likes: 45, likedBy: [], avatar: "https://i.pravatar.cc/150?u=john", comments: [], location: "Taicang" },
+    { id: 3, emoji: "❤️", image: "https://loremflickr.com/500/500/cat?lock=12", title: "Found her favorite toy today and couldn't stop crying.", user: "Emily", userId: "user-emily", likes: 33, likedBy: [], avatar: "https://i.pravatar.cc/150?u=emily", comments: [] },
+    { id: 4, emoji: "🕊️", title: "Fly high, sweet angel.", user: "Mike", userId: "user-mike", likes: 21, likedBy: [], avatar: "https://i.pravatar.cc/150?u=mike", comments: [], location: "Kunshan" },
+  ]);
   const [cart, setCart] = React.useState<Product[]>([]);
   const [isCartOpen, setIsCartOpen] = React.useState(false);
 
@@ -2321,7 +2331,7 @@ const App: React.FC = () => {
       case 'Home': return <HomePage setActivePage={handlePageChange} />;
       case 'Services': return <ServicesPage setActivePage={handlePageChange} />;
       case 'Shop': return <ShopPage onAddToCart={handleAddToCart} />;
-      case 'Community': return <CommunityPage setActivePage={handlePageChange} posts={posts} onPostSelect={(post) => handlePageChange('PostDetail', { post })} />;
+      case 'Community': return <CommunityPage setActivePage={handlePageChange} posts={posts} currentUser={currentUser} onPostSelect={(post) => handlePageChange('PostDetail', { post })} />;
       case 'Profile': return <ProfilePage setActivePage={handlePageChange} user={currentUser} orders={orders} />;
       case 'Upload': return <UploadPage setActivePage={handlePageChange} onPublish={handlePublishPost} />;
       case 'PostDetail':
