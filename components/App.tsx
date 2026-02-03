@@ -1860,6 +1860,24 @@ const App: React.FC = () => {
   const handleLike = (postId: number) => {
     const userId = currentUser.id;
     const today = new Date().toISOString().split('T')[0];
+    
+    const targetPost = posts.find(p => p.id === postId);
+    if (!targetPost) return;
+    
+    const isLiked = targetPost.likedBy.includes(userId);
+    
+    if (!isLiked && userLikeStats.todayLikes >= MAX_DAILY_LIKES) {
+      alert(`You have reached the daily like limit of ${MAX_DAILY_LIKES} likes. Please try again tomorrow.`);
+      return;
+    }
+    
+    if (!isLiked) {
+      setUserLikeStats(prev => ({
+        ...prev,
+        todayLikes: prev.lastLikeDate === today ? prev.todayLikes + 1 : 1,
+        lastLikeDate: today
+      }));
+    }
 
     setPosts(posts.map(post => {
       if (post.id !== postId) return post;
@@ -1874,17 +1892,6 @@ const App: React.FC = () => {
           likedBy: updatedLikedBy
         };
       } else {
-        if (userLikeStats.todayLikes >= MAX_DAILY_LIKES) {
-          alert(`You have reached the daily like limit of ${MAX_DAILY_LIKES} likes. Please try again tomorrow.`);
-          return post;
-        }
-
-        setUserLikeStats(prev => ({
-          ...prev,
-          todayLikes: prev.lastLikeDate === today ? prev.todayLikes + 1 : 1,
-          lastLikeDate: today
-        }));
-
         return {
           ...post,
           likes: post.likes + 1,
