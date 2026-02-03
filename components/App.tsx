@@ -2199,13 +2199,13 @@ const App: React.FC = () => {
         const updatedLikedBy = post.likedBy.filter(id => id !== userId);
         return {
           ...post,
-          likes: Math.max(0, updatedLikedBy.length),
+          likes: Math.max(0, (post.likes || 0) - 1),
           likedBy: updatedLikedBy
         };
       } else {
         return {
           ...post,
-          likes: post.likes + 1,
+          likes: (post.likes || 0) + 1,
           likedBy: [...post.likedBy, userId]
         };
       }
