@@ -6,44 +6,10 @@ struct HomeDashboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                HeroBanner()
+                HeroBanner(userName: appModel.currentUser?.displayName ?? "朋友")
                 QuickStatsRow(appModel: appModel)
-
-                SectionCard(
-                    title: "产品主线",
-                    subtitle: "围绕宠物从成长记录到社交连接的一体化体验。"
-                ) {
-                    VStack(spacing: 12) {
-                        CapabilityRow(
-                            icon: "tree.fill",
-                            title: "圣诞树相册集",
-                            detail: "用树形时间轴承载照片、视频和节日记忆。"
-                        )
-                        CapabilityRow(
-                            icon: "video.badge.plus",
-                            title: "视频上传",
-                            detail: "支持本地选择、标签管理、发布状态追踪。"
-                        )
-                        CapabilityRow(
-                            icon: "person.2.circle.fill",
-                            title: "宠物相亲角",
-                            detail: "结合匹配卡片与社区动态，打造社交场景。"
-                        )
-                    }
-                }
-
-                SectionCard(
-                    title: "下一步研发建议",
-                    subtitle: "这个原型已适合继续接后端与真实媒体能力。"
-                ) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("1. 接入登录、用户档案、宠物档案。")
-                        Text("2. 接入视频上传存储与内容审核。")
-                        Text("3. 接入动态流、聊天、匹配推荐算法。")
-                    }
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                }
+                ShortcutGrid(appModel: appModel)
+                RoadmapCard()
             }
             .padding(20)
         }
@@ -53,25 +19,27 @@ struct HomeDashboardView: View {
 }
 
 private struct HeroBanner: View {
+    let userName: String
+
     var body: some View {
         ZStack(alignment: .bottomLeading) {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .fill(PetTheme.dashboardGradient)
-                .frame(height: 240)
+                .frame(height: 250)
 
             VStack(alignment: .leading, spacing: 14) {
-                Text("宠物从生到老的一体化陪伴")
+                Text("欢迎回来，\(userName)")
                     .font(.system(size: 31, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
 
-                Text("记录成长、分享视频、连接同城伙伴，把相册与社交合成一个有温度的苹果 App。")
+                Text("现在我们已经有账号、宠物档案、视频队列、动态流和聊天入口，可以继续往真实产品落地。")
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.88))
 
                 HStack(spacing: 12) {
-                    TagPill(label: "iOS SwiftUI")
-                    TagPill(label: "社交 + 内容")
-                    TagPill(label: "宠物生命周期")
+                    TagPill(label: "登录可用")
+                    TagPill(label: "内容可发")
+                    TagPill(label: "社交可聊")
                 }
             }
             .padding(24)
@@ -84,10 +52,80 @@ private struct QuickStatsRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            DashboardStatCard(value: "\(appModel.holidayMemories.count)", label: "树上记忆")
-            DashboardStatCard(value: "\(appModel.uploadedVideos.count)", label: "视频草稿")
-            DashboardStatCard(value: "\(appModel.featuredPets.count)", label: "匹配档案")
+            DashboardStatCard(value: "\(appModel.ownedPets.count)", label: "我的宠物")
+            DashboardStatCard(value: "\(appModel.pendingVideos.count)", label: "待处理视频")
+            DashboardStatCard(value: "\(appModel.chatThreads.count)", label: "聊天线程")
         }
+    }
+}
+
+private struct ShortcutGrid: View {
+    let appModel: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("快捷入口")
+                .font(.title3.weight(.semibold))
+
+            NavigationLink {
+                ProfileHubView(appModel: appModel)
+            } label: {
+                ShortcutCard(
+                    icon: "person.text.rectangle.fill",
+                    title: "完善宠物档案",
+                    detail: "补全关系偏好、城市、兴趣和疫苗信息。",
+                    accent: .sky
+                )
+            }
+
+            NavigationLink {
+                VideoUploadView(appModel: appModel)
+            } label: {
+                ShortcutCard(
+                    icon: "video.badge.plus",
+                    title: "继续发布视频",
+                    detail: "从本地相册选视频，进入上传或审核状态。",
+                    accent: .peach
+                )
+            }
+
+            NavigationLink {
+                PetMatchView(appModel: appModel)
+            } label: {
+                ShortcutCard(
+                    icon: "heart.text.square.fill",
+                    title: "去社交广场",
+                    detail: "发动态、看详情、点喜欢、再进入聊天。",
+                    accent: .ember
+                )
+            }
+
+            NavigationLink {
+                ChristmasTreeAlbumView(appModel: appModel)
+            } label: {
+                ShortcutCard(
+                    icon: "tree.circle.fill",
+                    title: "整理成长相册树",
+                    detail: "把照片故事和里程碑做成可分享的树形时间线。",
+                    accent: .pine
+                )
+            }
+        }
+    }
+}
+
+private struct RoadmapCard: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("下一步接真实后端")
+                .font(.title3.weight(.semibold))
+
+            Text("当前代码已经把产品状态集中到 `AppModel + backend actor`。后续可替换成 Firebase Auth、Supabase Storage、动态表和消息表，而不需要重写整个 UI。")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .padding(20)
+        .background(.white, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
     }
 }
 
@@ -109,46 +147,35 @@ private struct DashboardStatCard: View {
     }
 }
 
-private struct SectionCard<Content: View>: View {
-    let title: String
-    let subtitle: String
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(title)
-                .font(.title3.weight(.semibold))
-            Text(subtitle)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            content
-        }
-        .padding(20)
-        .background(.white, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-    }
-}
-
-private struct CapabilityRow: View {
+private struct ShortcutCard: View {
     let icon: String
     let title: String
     let detail: String
+    let accent: AccentToken
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
             Image(systemName: icon)
                 .font(.title3)
-                .foregroundStyle(PetTheme.accent)
-                .frame(width: 34, height: 34)
-                .background(PetTheme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+                .foregroundStyle(accent.color)
+                .frame(width: 40, height: 40)
+                .background(accent.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.headline)
+                    .foregroundStyle(PetTheme.ink)
                 Text(detail)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
+
+            Spacer()
+            Image(systemName: "chevron.right")
+                .foregroundStyle(.secondary)
         }
+        .padding(18)
+        .background(.white, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 }
 

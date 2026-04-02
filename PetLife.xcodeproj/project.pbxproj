@@ -15,6 +15,9 @@
 		A00000000000000000000006 /* ChristmasTreeAlbumView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000016 /* ChristmasTreeAlbumView.swift */; };
 		A00000000000000000000007 /* VideoUploadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000017 /* VideoUploadView.swift */; };
 		A00000000000000000000008 /* PetMatchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000018 /* PetMatchView.swift */; };
+		A00000000000000000000009 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000019 /* AppState.swift */; };
+		A0000000000000000000000A /* AuthenticationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001A /* AuthenticationView.swift */; };
+		A0000000000000000000000B /* ProfileHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001B /* ProfileHubView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,6 +30,9 @@
 		A00000000000000000000016 /* ChristmasTreeAlbumView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChristmasTreeAlbumView.swift; sourceTree = "<group>"; };
 		A00000000000000000000017 /* VideoUploadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoUploadView.swift; sourceTree = "<group>"; };
 		A00000000000000000000018 /* PetMatchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PetMatchView.swift; sourceTree = "<group>"; };
+		A00000000000000000000019 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		A0000000000000000000001A /* AuthenticationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationView.swift; sourceTree = "<group>"; };
+		A0000000000000000000001B /* ProfileHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileHubView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -82,6 +88,8 @@
 				A00000000000000000000037 /* ChristmasTree */,
 				A00000000000000000000038 /* Video */,
 				A00000000000000000000039 /* Match */,
+				A0000000000000000000003A /* Auth */,
+				A0000000000000000000003B /* Profile */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -90,6 +98,7 @@
 			isa = PBXGroup;
 			children = (
 				A00000000000000000000013 /* Models.swift */,
+				A00000000000000000000019 /* AppState.swift */,
 				A00000000000000000000014 /* Theme.swift */,
 			);
 			path = Shared;
@@ -125,6 +134,22 @@
 				A00000000000000000000018 /* PetMatchView.swift */,
 			);
 			path = Match;
+			sourceTree = "<group>";
+		};
+		A0000000000000000000003A /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				A0000000000000000000001A /* AuthenticationView.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		A0000000000000000000003B /* Profile */ = {
+			isa = PBXGroup;
+			children = (
+				A0000000000000000000001B /* ProfileHubView.swift */,
+			);
+			path = Profile;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -198,11 +223,14 @@
 				A00000000000000000000001 /* PetLifeApp.swift in Sources */,
 				A00000000000000000000002 /* RootTabView.swift in Sources */,
 				A00000000000000000000003 /* Models.swift in Sources */,
+				A00000000000000000000009 /* AppState.swift in Sources */,
 				A00000000000000000000004 /* Theme.swift in Sources */,
 				A00000000000000000000005 /* HomeDashboardView.swift in Sources */,
 				A00000000000000000000006 /* ChristmasTreeAlbumView.swift in Sources */,
 				A00000000000000000000007 /* VideoUploadView.swift in Sources */,
 				A00000000000000000000008 /* PetMatchView.swift in Sources */,
+				A0000000000000000000000A /* AuthenticationView.swift in Sources */,
+				A0000000000000000000000B /* ProfileHubView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

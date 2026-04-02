@@ -1,27 +1,60 @@
 import SwiftUI
 
 struct ChristmasTreeAlbumView: View {
-    let memories: [HolidayMemory]
+    let appModel: AppModel
+
+    @State private var isShowingMemorySheet = false
+    @State private var memoryDraft = MemoryDraft()
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 TreeHeroHeader()
 
-                ForEach(Array(memories.enumerated()), id: \.element.id) { index, memory in
-                    OrnamentMemoryCard(memory: memory, level: index, showsStem: index < memories.count - 1)
+                ForEach(Array(appModel.holidayMemories.enumerated()), id: \.element.id) { index, memory in
+                    NavigationLink {
+                        MemoryDetailView(memory: memory)
+                    } label: {
+                        OrnamentMemoryCard(
+                            memory: memory,
+                            showsStem: index < appModel.holidayMemories.count - 1
+                        )
+                    }
                 }
             }
             .padding(20)
         }
         .background(
             LinearGradient(
-                colors: [PetTheme.cream, Color.white, PetTheme.cream.opacity(0.7)],
+                colors: [PetTheme.cream, .white, PetTheme.cream.opacity(0.7)],
                 startPoint: .top,
                 endPoint: .bottom
             )
         )
         .navigationTitle("圣诞树相册集")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("新增记忆") {
+                    isShowingMemorySheet = true
+                }
+            }
+        }
+        .sheet(isPresented: $isShowingMemorySheet) {
+            AddMemorySheet(
+                draft: $memoryDraft,
+                isBusy: appModel.isBusy,
+                saveAction: handleAddMemory
+            )
+        }
+    }
+
+    private func handleAddMemory() {
+        let draftToSave = memoryDraft
+        Task {
+            await appModel.addMemory(draftToSave)
+            memoryDraft = MemoryDraft()
+            isShowingMemorySheet = false
+        }
     }
 }
 
@@ -31,10 +64,7 @@ private struct TreeHeroHeader: View {
             RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [
-                            Color(red: 0.12, green: 0.38, blue: 0.25),
-                            Color(red: 0.08, green: 0.20, blue: 0.14)
-                        ],
+                        colors: [AccentToken.pine.color, Color(red: 0.08, green: 0.20, blue: 0.14)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -50,7 +80,7 @@ private struct TreeHeroHeader: View {
                     .font(.system(size: 30, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
 
-                Text("参考节日树形叙事，把照片、短视频、语音祝福和时间节点组合成可分享的成长圣诞树。")
+                Text("现在已经支持里程碑详情和新增记忆，后面只要把图片、音频和云端存储接上，这个模块就能真正跑起来。")
                     .font(.subheadline)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.white.opacity(0.86))
@@ -62,14 +92,13 @@ private struct TreeHeroHeader: View {
 
 private struct OrnamentMemoryCard: View {
     let memory: HolidayMemory
-    let level: Int
     let showsStem: Bool
 
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
             VStack(spacing: 0) {
                 Circle()
-                    .fill(memory.color)
+                    .fill(memory.accent.color)
                     .frame(width: 18, height: 18)
                     .overlay(
                         Image(systemName: memory.ornament)
@@ -79,7 +108,7 @@ private struct OrnamentMemoryCard: View {
 
                 if showsStem {
                     RoundedRectangle(cornerRadius: 10)
-                        .fill(memory.color.opacity(0.35))
+                        .fill(memory.accent.color.opacity(0.35))
                         .frame(width: 4, height: 84)
                         .padding(.top, 4)
                 }
@@ -88,10 +117,11 @@ private struct OrnamentMemoryCard: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text(memory.dateText)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(memory.color)
+                    .foregroundStyle(memory.accent.color)
 
                 Text(memory.title)
                     .font(.title3.weight(.semibold))
+                    .foregroundStyle(PetTheme.ink)
 
                 Text(memory.subtitle)
                     .font(.subheadline)
@@ -108,8 +138,73 @@ private struct OrnamentMemoryCard: View {
             .background(.white, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .stroke(memory.color.opacity(0.15), lineWidth: 1)
+                    .stroke(memory.accent.color.opacity(0.15), lineWidth: 1)
             )
+        }
+    }
+}
+
+private struct MemoryDetailView: View {
+    let memory: HolidayMemory
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                RoundedRectangle(cornerRadius: 32, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [memory.accent.color, memory.accent.color.opacity(0.55)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(height: 240)
+                    .overlay(
+                        Image(systemName: memory.ornament)
+                            .font(.system(size: 52))
+                            .foregroundStyle(.white.opacity(0.9))
+                    )
+
+                Text(memory.title)
+                    .font(.largeTitle.weight(.bold))
+                Text(memory.dateText)
+                    .font(.headline)
+                    .foregroundStyle(memory.accent.color)
+                Text(memory.story)
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(20)
+        }
+        .navigationTitle("记忆详情")
+    }
+}
+
+private struct AddMemorySheet: View {
+    @Binding var draft: MemoryDraft
+    let isBusy: Bool
+    let saveAction: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("基础信息") {
+                    TextField("标题", text: $draft.title)
+                    TextField("副标题", text: $draft.subtitle)
+                    TextField("日期", text: $draft.dateText)
+                }
+
+                Section("故事内容") {
+                    TextField("完整故事", text: $draft.story, axis: .vertical)
+                }
+            }
+            .navigationTitle("新增相册记忆")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("保存", action: saveAction)
+                        .disabled(draft.title.isEmpty || draft.story.isEmpty || isBusy)
+                }
+            }
         }
     }
 }
@@ -128,6 +223,6 @@ private struct MiniBadge: View {
 
 #Preview {
     NavigationStack {
-        ChristmasTreeAlbumView(memories: AppModel().holidayMemories)
+        ChristmasTreeAlbumView(appModel: AppModel())
     }
 }
