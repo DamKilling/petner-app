@@ -62,7 +62,7 @@ private struct ActiveThreadRoute: Identifiable {
     let id: UUID
 }
 
-private struct ActivePostRoute: Identifiable {
+private struct ActivePostRoute: Identifiable, Hashable {
     let id: UUID
 }
 
