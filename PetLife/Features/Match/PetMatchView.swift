@@ -6,13 +6,18 @@ struct PetMatchView: View {
     @State private var isShowingComposer = false
     @State private var composerDraft = PostDraft()
     @State private var activeThreadRoute: ActiveThreadRoute?
+    @State private var activePostRoute: ActivePostRoute?
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 MatchHero()
                 MatchProfileCarousel(appModel: appModel, activeThreadRoute: $activeThreadRoute)
-                CommunityFeed(appModel: appModel, activeThreadRoute: $activeThreadRoute)
+                CommunityFeed(
+                    appModel: appModel,
+                    activeThreadRoute: $activeThreadRoute,
+                    activePostRoute: $activePostRoute
+                )
             }
             .padding(20)
         }
@@ -38,6 +43,9 @@ struct PetMatchView: View {
                 ChatThreadView(appModel: appModel, threadID: route.id)
             }
         }
+        .navigationDestination(item: $activePostRoute) { route in
+            PostDetailView(appModel: appModel, postID: route.id)
+        }
     }
 
     private func handlePublishPost(selectedPet: String) {
@@ -51,6 +59,10 @@ struct PetMatchView: View {
 }
 
 private struct ActiveThreadRoute: Identifiable {
+    let id: UUID
+}
+
+private struct ActivePostRoute: Identifiable {
     let id: UUID
 }
 
@@ -157,6 +169,7 @@ private struct PetProfileCard: View {
 private struct CommunityFeed: View {
     let appModel: AppModel
     @Binding var activeThreadRoute: ActiveThreadRoute?
+    @Binding var activePostRoute: ActivePostRoute?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -174,17 +187,25 @@ private struct CommunityFeed: View {
                     })
                 }
                 .contextMenu {
-                    Button("进入详情") { }
+                    Button("进入详情") {
+                        activePostRoute = ActivePostRoute(id: post.id)
+                    }
                     Button("发起聊天") {
-                        handleMessage(for: post.petName)
+                        handleMessage(for: post)
                     }
                 }
             }
         }
     }
 
-    private func handleMessage(for petName: String) {
-        guard let pet = appModel.discoverPets.first(where: { $0.name == petName }) else { return }
+    private func handleMessage(for post: FeedPost) {
+        guard
+            let relatedPetID = post.relatedPetID,
+            let pet = appModel.discoverPets.first(where: { $0.id == relatedPetID })
+        else {
+            return
+        }
+
         Task {
             if let id = await appModel.openChat(for: pet) {
                 activeThreadRoute = ActiveThreadRoute(id: id)

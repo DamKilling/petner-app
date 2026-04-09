@@ -79,6 +79,7 @@ struct PostComment: Identifiable, Hashable, Sendable {
 
 struct FeedPost: Identifiable, Hashable, Sendable {
     let id: UUID
+    var relatedPetID: UUID?
     var authorName: String
     var petName: String
     var topic: String
@@ -100,6 +101,7 @@ struct ChatMessage: Identifiable, Hashable, Sendable {
 
 struct ChatThread: Identifiable, Hashable, Sendable {
     let id: UUID
+    var relatedPetID: UUID
     var title: String
     var subtitle: String
     var unreadCount: Int
