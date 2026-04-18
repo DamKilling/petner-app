@@ -57,28 +57,39 @@ struct AuthenticationView: View {
 
 private struct AuthHero: View {
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
+        ZStack(alignment: .bottomTrailing) {
             RoundedRectangle(cornerRadius: 32, style: .continuous)
                 .fill(PetTheme.dashboardGradient)
-                .frame(height: 280)
+                .frame(height: 300)
 
-            VStack(alignment: .leading, spacing: 14) {
-                Text("宠物从成长到陪伴关系的完整 App")
-                    .font(.system(size: 30, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+            PetHeroArtwork(name: "hero-auth", width: 146)
+                .padding(.trailing, 18)
+                .padding(.bottom, 18)
 
-                Text("把成长记录、视频内容、同城互动和聊天入口收进一个产品壳里，这一版已经具备真实流程的雏形。")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.85))
+            VStack(alignment: .leading, spacing: 0) {
+                PetHeroCopyBox(maxWidth: 228) {
+                    Text("宠物从成长到陪伴关系的完整 App")
+                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.86)
 
-                HStack(spacing: 10) {
-                    AuthPill(label: "登录")
-                    AuthPill(label: "档案")
-                    AuthPill(label: "上传")
-                    AuthPill(label: "社交")
+                    Text("把成长记录、视频内容、同城互动和聊天入口收进一个产品壳里，这一版已经具备真实流程的雏形。")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.85))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(4)
+
+                    HStack(spacing: 10) {
+                        AuthPill(label: "登录")
+                        AuthPill(label: "档案")
+                        AuthPill(label: "上传")
+                        AuthPill(label: "社交")
+                    }
                 }
             }
             .padding(24)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
 }
@@ -86,24 +97,31 @@ private struct AuthHero: View {
 private struct ValueGrid: View {
     var body: some View {
         VStack(spacing: 14) {
-            ValueCard(title: "宠物档案", detail: "建立宠物基础资料、关系偏好和社交标签。")
-            ValueCard(title: "视频发布", detail: "本地选视频、进入上传队列，再扩展到云端存储。")
-            ValueCard(title: "动态和聊天", detail: "动态流承接曝光，聊天承接意向沟通。")
+            ValueCard(iconName: "feature-profile", title: "宠物档案", detail: "建立宠物基础资料、关系偏好和社交标签。")
+            ValueCard(iconName: "feature-video", title: "视频发布", detail: "本地选视频、进入上传队列，再扩展到云端存储。")
+            ValueCard(iconName: "feature-social", title: "动态和聊天", detail: "动态流承接曝光，聊天承接意向沟通。")
         }
     }
 }
 
 private struct ValueCard: View {
+    let iconName: String
     let title: String
     let detail: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.headline)
-            Text(detail)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+        HStack(alignment: .top, spacing: 14) {
+            PetFeatureIcon(name: iconName, size: 40)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title)
+                    .font(.headline)
+                Text(detail)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(2)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
@@ -118,6 +136,8 @@ private struct AuthPill: View {
         Text(label)
             .font(.caption.weight(.semibold))
             .foregroundStyle(.white)
+            .lineLimit(1)
+            .minimumScaleFactor(0.85)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(.white.opacity(0.15), in: Capsule())

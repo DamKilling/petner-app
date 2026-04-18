@@ -62,13 +62,13 @@ private struct ActiveThreadRoute: Identifiable {
     let id: UUID
 }
 
-private struct ActivePostRoute: Identifiable, Hashable {
+private struct ActivePostRoute: Identifiable,Hashable {
     let id: UUID
 }
 
 private struct MatchHero: View {
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
+        ZStack(alignment: .bottomTrailing) {
             RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .fill(
                     LinearGradient(
@@ -77,18 +77,29 @@ private struct MatchHero: View {
                         endPoint: .bottomTrailing
                     )
                 )
-                .frame(height: 220)
+                .frame(height: 276)
 
-            VStack(alignment: .leading, spacing: 10) {
-                Text("像社交媒体一样去认识新朋友")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+            PetHeroArtwork(name: "hero-social", width: 148)
+                .padding(.trailing, 18)
+                .padding(.bottom, 18)
 
-                Text("推荐档案承接发现，动态详情承接了解，聊天入口承接意向转化。")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.84))
+            VStack(alignment: .leading, spacing: 0) {
+                PetHeroCopyBox(maxWidth: 220) {
+                    Text("像社交媒体一样去认识新朋友")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.86)
+
+                    Text("推荐档案承接发现，动态详情承接了解，聊天入口承接意向转化。")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.84))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(4)
+                }
             }
             .padding(24)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
 }
@@ -132,9 +143,7 @@ private struct PetProfileCard: View {
                 )
                 .frame(width: 250, height: 180)
                 .overlay(
-                    Image(systemName: "pawprint.fill")
-                        .font(.system(size: 42))
-                        .foregroundStyle(.white.opacity(0.78))
+                    PetFeatureIcon(name: "feature-social", size: 84)
                 )
 
             VStack(alignment: .leading, spacing: 6) {
@@ -147,6 +156,7 @@ private struct PetProfileCard: View {
                 Text(pet.bio)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                     .lineLimit(2)
             }
 
@@ -238,6 +248,8 @@ private struct PostRow: View {
             Text(post.content)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(3)
 
             HStack(spacing: 8) {
                 ForEach(post.tags, id: \.self) { tag in
@@ -284,9 +296,7 @@ private struct PetDetailView: View {
                     )
                     .frame(height: 250)
                     .overlay(
-                        Image(systemName: "pawprint.fill")
-                            .font(.system(size: 56))
-                            .foregroundStyle(.white.opacity(0.9))
+                        PetHeroArtwork(name: "hero-social", width: 190)
                     )
 
                 Text("\(pet.name) · \(pet.breed)")
@@ -297,12 +307,14 @@ private struct PetDetailView: View {
                 Text(pet.bio)
                     .font(.body)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text("想找的关系")
                     .font(.headline)
                 Text(pet.lookingFor)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Button("发起聊天", action: openChat)
                     .buttonStyle(.borderedProminent)

@@ -31,7 +31,11 @@ struct RootTabView: View {
                 HomeDashboardView(appModel: appModel)
             }
             .tabItem {
-                Label("首页", systemImage: "house.fill")
+                Label {
+                    Text("首页")
+                } icon: {
+                    PetTabIcon(name: "tab-home")
+                }
             }
             .tag(AppTab.home)
 
@@ -39,7 +43,11 @@ struct RootTabView: View {
                 ChristmasTreeAlbumView(appModel: appModel)
             }
             .tabItem {
-                Label("相册树", systemImage: "tree.fill")
+                Label {
+                    Text("相册树")
+                } icon: {
+                    PetTabIcon(name: "tab-tree")
+                }
             }
             .tag(AppTab.tree)
 
@@ -47,7 +55,11 @@ struct RootTabView: View {
                 VideoUploadView(appModel: appModel)
             }
             .tabItem {
-                Label("视频", systemImage: "play.rectangle.fill")
+                Label {
+                    Text("视频")
+                } icon: {
+                    PetTabIcon(name: "tab-video")
+                }
             }
             .tag(AppTab.videos)
 
@@ -55,7 +67,11 @@ struct RootTabView: View {
                 PetMatchView(appModel: appModel)
             }
             .tabItem {
-                Label("社交", systemImage: "heart.circle.fill")
+                Label {
+                    Text("社交")
+                } icon: {
+                    PetTabIcon(name: "tab-social")
+                }
             }
             .tag(AppTab.match)
 
@@ -63,7 +79,11 @@ struct RootTabView: View {
                 ProfileHubView(appModel: appModel)
             }
             .tabItem {
-                Label("我的", systemImage: "person.crop.circle.fill")
+                Label {
+                    Text("我的")
+                } icon: {
+                    PetTabIcon(name: "tab-profile")
+                }
             }
             .tag(AppTab.profile)
         }

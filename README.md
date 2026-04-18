@@ -9,7 +9,7 @@ PetLife is a SwiftUI iOS prototype for a pet life-cycle platform. The current co
 - Christmas tree album with timeline detail and memory creation
 - Pet video publishing flow with upload queue and detail pages
 - Social square with feed publishing, post detail, comments, and chat entry
-- Local in-memory backend actor that can later be replaced by Firebase, Supabase, or a custom API
+- CloudKit-backed persistence with automatic in-memory fallback for local debugging
 
 ## Architecture
 
@@ -18,7 +18,9 @@ PetLife is a SwiftUI iOS prototype for a pet life-cycle platform. The current co
 - `PetLife/Shared`
   - Domain models
   - `AppModel` state container
-  - `InMemoryPetBackend` async mock backend
+  - `PetBackend` protocol with two implementations:
+    - `CloudKitPetBackend` (real iCloud private database)
+    - `InMemoryPetBackend` (fallback + previews)
   - Shared theme tokens
 - `PetLife/Features`
   - `Auth`: sign-in onboarding
@@ -28,20 +30,44 @@ PetLife is a SwiftUI iOS prototype for a pet life-cycle platform. The current co
   - `Match`: pet discovery, feed, post detail, and chat
   - `Profile`: user profile hub, pet archive, and inbox
 
-## Backend Evolution Path
+## CloudKit Backend Setup
 
-The current backend layer is intentionally split from the UI:
+The backend layer is split from UI via protocol so feature views stay unchanged.
 
 - `AppModel` owns view-facing state and orchestration
-- `InMemoryPetBackend` simulates async data operations
-- feature views call async methods instead of mutating raw arrays directly
+- `PetBackendFactory` chooses CloudKit by default
+- `CloudKitPetBackend` uses normalized CloudKit records (multi-record-type, not a single payload blob)
+- if CloudKit is unavailable, it auto-switches to `InMemoryPetBackend`
 
-This makes it straightforward to swap in:
+### CloudKit record schema (normalized)
 
-- Firebase Auth for login
-- Supabase/Postgres or Firestore for pets, posts, and chats
-- Supabase Storage / Firebase Storage / OSS / S3 for videos and media
-- moderation and recommendation services for publish/review/match flows
+- `PLSession`: active app session (`activeUserID`)
+- `PLUserAccount`: app profile
+- `PLOwnedPet`: owned pets
+- `PLHolidayMemory`: tree memories
+  includes metadata plus `photoAsset` / `audioAsset` CloudKit assets
+- `PLUploadVideo`: video publish queue
+- `PLFeedPost`: social posts
+- `PLPostComment`: comments for posts
+- `PLChatThread`: chat threads
+- `PLChatMessage`: chat messages
+
+The app also includes a one-time migration path from old single-record payload storage (`current.payload`) to this normalized schema.
+
+### Xcode / Apple Developer configuration
+
+1. Open target `PetLife` -> `Signing & Capabilities` -> add `iCloud`.
+2. Enable `CloudKit` and select/create container `iCloud.<your-bundle-id>`.
+3. Keep `PetLife.entitlements` in source control (already includes `CloudKit` and default container pattern).
+4. Run app on a device/simulator signed in with Apple ID (for CloudKit access).
+5. Create sample data by using the app flows, then open CloudKit Dashboard and deploy schema from Development to Production.
+
+### Optional runtime switches
+
+- Force memory backend (for UI-only debugging):
+  - set environment variable `PETLIFE_BACKEND=memory` in your Xcode scheme.
+- Use explicit container ID:
+  - add `CLOUDKIT_CONTAINER_ID` to Info.plist (or Build Settings `INFOPLIST_KEY_CLOUDKIT_CONTAINER_ID`).
 
 ## Notes
 

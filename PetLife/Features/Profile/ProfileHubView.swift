@@ -60,26 +60,35 @@ private struct ProfileHeader: View {
     let user: UserAccount
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 14) {
-                Image(systemName: user.avatarSymbol)
-                    .font(.system(size: 34))
-                    .foregroundStyle(.white)
-                    .frame(width: 72, height: 72)
-                    .background(PetTheme.accent, in: Circle())
+        HStack(alignment: .center, spacing: 16) {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 14) {
+                    Image(systemName: user.avatarSymbol)
+                        .font(.system(size: 34))
+                        .foregroundStyle(.white)
+                        .frame(width: 72, height: 72)
+                        .background(PetTheme.accent, in: Circle())
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(user.displayName)
-                        .font(.title3.weight(.bold))
-                    Text("\(user.city) · \(user.phone)")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(user.displayName)
+                            .font(.title3.weight(.bold))
+                        Text("\(user.city) · \(user.phone)")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-            }
 
-            Text(user.bio)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                Text(user.bio)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(3)
+            }
+            .layoutPriority(1)
+
+            Spacer(minLength: 0)
+
+            PetHeroArtwork(name: "hero-profile", width: 104)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(22)
@@ -94,8 +103,11 @@ private struct PetSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("我的宠物档案")
-                    .font(.title3.weight(.semibold))
+                HStack(spacing: 10) {
+                    PetFeatureIcon(name: "feature-profile", size: 28)
+                    Text("我的宠物档案")
+                        .font(.title3.weight(.semibold))
+                }
                 Spacer()
                 Button("新增档案", action: addAction)
                     .font(.subheadline.weight(.semibold))
@@ -111,6 +123,8 @@ private struct PetSection: View {
                     Text(pet.bio)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(2)
 
                     HStack(spacing: 8) {
                         ForEach(pet.interests, id: \.self) { interest in
@@ -158,6 +172,8 @@ private struct ChatInboxSection: View {
                             Text(thread.subtitle)
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .lineLimit(2)
                         }
 
                         Spacer()

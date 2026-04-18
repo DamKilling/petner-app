@@ -22,27 +22,38 @@ private struct HeroBanner: View {
     let userName: String
 
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
+        ZStack(alignment: .bottomTrailing) {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .fill(PetTheme.dashboardGradient)
-                .frame(height: 250)
+                .frame(height: 286)
 
-            VStack(alignment: .leading, spacing: 14) {
-                Text("欢迎回来，\(userName)")
-                    .font(.system(size: 31, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+            PetHeroArtwork(name: "hero-home", width: 154)
+                .padding(.trailing, 18)
+                .padding(.bottom, 18)
 
-                Text("现在我们已经有账号、宠物档案、视频队列、动态流和聊天入口，可以继续往真实产品落地。")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.88))
+            VStack(alignment: .leading, spacing: 0) {
+                PetHeroCopyBox(maxWidth: 222) {
+                    Text("欢迎回来，\(userName)")
+                        .font(.system(size: 31, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.85)
 
-                HStack(spacing: 12) {
-                    TagPill(label: "登录可用")
-                    TagPill(label: "内容可发")
-                    TagPill(label: "社交可聊")
+                    Text("现在我们已经有账号、宠物档案、视频队列、动态流和聊天入口，可以继续往真实产品落地。")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.88))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(4)
+
+                    HStack(spacing: 12) {
+                        TagPill(label: "登录可用")
+                        TagPill(label: "内容可发")
+                        TagPill(label: "社交可聊")
+                    }
                 }
             }
             .padding(24)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
 }
@@ -71,10 +82,9 @@ private struct ShortcutGrid: View {
                 ProfileHubView(appModel: appModel)
             } label: {
                 ShortcutCard(
-                    icon: "person.text.rectangle.fill",
+                    imageName: "feature-profile",
                     title: "完善宠物档案",
-                    detail: "补全关系偏好、城市、兴趣和疫苗信息。",
-                    accent: .sky
+                    detail: "补全关系偏好、城市、兴趣和疫苗信息。"
                 )
             }
 
@@ -82,10 +92,9 @@ private struct ShortcutGrid: View {
                 VideoUploadView(appModel: appModel)
             } label: {
                 ShortcutCard(
-                    icon: "video.badge.plus",
+                    imageName: "feature-video",
                     title: "继续发布视频",
-                    detail: "从本地相册选视频，进入上传或审核状态。",
-                    accent: .peach
+                    detail: "从本地相册选视频，进入上传或审核状态。"
                 )
             }
 
@@ -93,10 +102,9 @@ private struct ShortcutGrid: View {
                 PetMatchView(appModel: appModel)
             } label: {
                 ShortcutCard(
-                    icon: "heart.text.square.fill",
+                    imageName: "feature-social",
                     title: "去社交广场",
-                    detail: "发动态、看详情、点喜欢、再进入聊天。",
-                    accent: .ember
+                    detail: "发动态、看详情、点喜欢、再进入聊天。"
                 )
             }
 
@@ -104,10 +112,9 @@ private struct ShortcutGrid: View {
                 ChristmasTreeAlbumView(appModel: appModel)
             } label: {
                 ShortcutCard(
-                    icon: "tree.circle.fill",
+                    imageName: "feature-tree",
                     title: "整理成长相册树",
-                    detail: "把照片故事和里程碑做成可分享的树形时间线。",
-                    accent: .pine
+                    detail: "把照片故事和里程碑做成可分享的树形时间线。"
                 )
             }
         }
@@ -123,6 +130,7 @@ private struct RoadmapCard: View {
             Text("当前代码已经把产品状态集中到 `AppModel + backend actor`。后续可替换成 Firebase Auth、Supabase Storage、动态表和消息表，而不需要重写整个 UI。")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(20)
         .background(.white, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
@@ -140,6 +148,7 @@ private struct DashboardStatCard: View {
             Text(label)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
@@ -148,18 +157,13 @@ private struct DashboardStatCard: View {
 }
 
 private struct ShortcutCard: View {
-    let icon: String
+    let imageName: String
     let title: String
     let detail: String
-    let accent: AccentToken
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
-            Image(systemName: icon)
-                .font(.title3)
-                .foregroundStyle(accent.color)
-                .frame(width: 40, height: 40)
-                .background(accent.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+            PetFeatureIcon(name: imageName, size: 44)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
@@ -168,6 +172,8 @@ private struct ShortcutCard: View {
                 Text(detail)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(2)
             }
 
             Spacer()
@@ -186,6 +192,8 @@ private struct TagPill: View {
         Text(label)
             .font(.caption.weight(.semibold))
             .foregroundStyle(.white)
+            .lineLimit(1)
+            .minimumScaleFactor(0.85)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(.white.opacity(0.16), in: Capsule())

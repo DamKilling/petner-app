@@ -57,7 +57,7 @@ private struct UploadHeader: View {
     let selectedCount: Int
 
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
+        ZStack(alignment: .bottomTrailing) {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .fill(
                     LinearGradient(
@@ -66,18 +66,29 @@ private struct UploadHeader: View {
                         endPoint: .bottomTrailing
                     )
                 )
-                .frame(height: 220)
+                .frame(height: 276)
 
-            VStack(alignment: .leading, spacing: 10) {
-                Text("把日常内容变成可发布资产")
-                    .font(.system(size: 29, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+            PetHeroArtwork(name: "hero-video", width: 148)
+                .padding(.trailing, 18)
+                .padding(.bottom, 18)
 
-                Text("已选 \(selectedCount) 条本地视频。现在页面已经有标题、文案、标签和状态流转，后面可直接接对象存储与审核服务。")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.84))
+            VStack(alignment: .leading, spacing: 0) {
+                PetHeroCopyBox(maxWidth: 220) {
+                    Text("把日常内容变成可发布资产")
+                        .font(.system(size: 29, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.86)
+
+                    Text("已选 \(selectedCount) 条本地视频。现在页面已经有标题、文案、标签和状态流转，后面可直接接对象存储与审核服务。")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.84))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(4)
+                }
             }
             .padding(24)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
 }
@@ -150,14 +161,12 @@ private struct VideoSection: View {
                     VideoDetailView(video: video)
                 } label: {
                     HStack(spacing: 14) {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(video.accent.color.opacity(0.15))
-                            .frame(width: 76, height: 76)
-                            .overlay(
-                                Image(systemName: "play.circle.fill")
-                                    .font(.system(size: 24))
-                                    .foregroundStyle(video.accent.color)
-                            )
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .fill(video.accent.color.opacity(0.12))
+                                .frame(width: 76, height: 76)
+                            PetFeatureIcon(name: "feature-video", size: 54)
+                        }
 
                         VStack(alignment: .leading, spacing: 6) {
                             Text(video.title)
@@ -169,6 +178,7 @@ private struct VideoSection: View {
                             Text(video.caption)
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                                 .lineLimit(2)
                         }
 
@@ -205,9 +215,7 @@ private struct VideoDetailView: View {
                     )
                     .frame(height: 250)
                     .overlay(
-                        Image(systemName: "play.rectangle.fill")
-                            .font(.system(size: 52))
-                            .foregroundStyle(.white.opacity(0.9))
+                        PetHeroArtwork(name: "hero-video", width: 190)
                     )
 
                 Text(video.title)
@@ -215,6 +223,7 @@ private struct VideoDetailView: View {
                 Text(video.caption)
                     .font(.body)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 HStack(spacing: 8) {
                     ForEach(video.tags, id: \.self) { tag in

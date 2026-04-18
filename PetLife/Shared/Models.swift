@@ -8,7 +8,7 @@ enum AppTab: Hashable {
     case profile
 }
 
-enum AccentToken: String, CaseIterable, Hashable, Sendable {
+enum AccentToken: String, CaseIterable, Hashable, Sendable, Codable {
     case ember
     case pine
     case sky
@@ -17,14 +17,14 @@ enum AccentToken: String, CaseIterable, Hashable, Sendable {
     case mint
 }
 
-enum UploadStatus: String, CaseIterable, Hashable, Sendable {
+enum UploadStatus: String, CaseIterable, Hashable, Sendable, Codable {
     case draft = "待处理"
     case uploading = "上传中"
     case reviewing = "审核中"
     case published = "已发布"
 }
 
-struct UserAccount: Identifiable, Hashable, Sendable {
+struct UserAccount: Identifiable, Hashable, Sendable, Codable {
     let id: UUID
     var displayName: String
     var phone: String
@@ -33,7 +33,7 @@ struct UserAccount: Identifiable, Hashable, Sendable {
     var avatarSymbol: String
 }
 
-struct HolidayMemory: Identifiable, Hashable, Sendable {
+struct HolidayMemory: Identifiable, Hashable, Sendable, Codable {
     let id: UUID
     var title: String
     var subtitle: String
@@ -41,9 +41,12 @@ struct HolidayMemory: Identifiable, Hashable, Sendable {
     var ornament: String
     var accent: AccentToken
     var story: String
+    var photoAssetPath: String?
+    var audioAssetPath: String?
+    var audioDisplayName: String?
 }
 
-struct UploadVideo: Identifiable, Hashable, Sendable {
+struct UploadVideo: Identifiable, Hashable, Sendable, Codable {
     let id: UUID
     var title: String
     var duration: String
@@ -55,7 +58,7 @@ struct UploadVideo: Identifiable, Hashable, Sendable {
     var publishDateText: String
 }
 
-struct PetProfile: Identifiable, Hashable, Sendable {
+struct PetProfile: Identifiable, Hashable, Sendable, Codable {
     let id: UUID
     var name: String
     var species: String
@@ -70,14 +73,14 @@ struct PetProfile: Identifiable, Hashable, Sendable {
     var vaccinated: Bool
 }
 
-struct PostComment: Identifiable, Hashable, Sendable {
+struct PostComment: Identifiable, Hashable, Sendable, Codable {
     let id: UUID
     var authorName: String
     var body: String
     var createdAtText: String
 }
 
-struct FeedPost: Identifiable, Hashable, Sendable {
+struct FeedPost: Identifiable, Hashable, Sendable, Codable {
     let id: UUID
     var relatedPetID: UUID?
     var authorName: String
@@ -92,14 +95,14 @@ struct FeedPost: Identifiable, Hashable, Sendable {
     var createdAtText: String
 }
 
-struct ChatMessage: Identifiable, Hashable, Sendable {
+struct ChatMessage: Identifiable, Hashable, Sendable, Codable {
     let id: UUID
     var text: String
     var isFromCurrentUser: Bool
     var sentAtText: String
 }
 
-struct ChatThread: Identifiable, Hashable, Sendable {
+struct ChatThread: Identifiable, Hashable, Sendable, Codable {
     let id: UUID
     var relatedPetID: UUID
     var title: String
@@ -109,7 +112,7 @@ struct ChatThread: Identifiable, Hashable, Sendable {
     var messages: [ChatMessage]
 }
 
-struct BootstrapPayload: Sendable {
+struct BootstrapPayload: Sendable, Codable {
     var currentUser: UserAccount?
     var ownedPets: [PetProfile]
     var discoverPets: [PetProfile]
@@ -181,4 +184,7 @@ struct MemoryDraft: Hashable, Sendable {
     var story: String = ""
     var ornament: String = "star.fill"
     var accent: AccentToken = .pine
+    var photoAssetPath: String?
+    var audioAssetPath: String?
+    var audioDisplayName: String?
 }
