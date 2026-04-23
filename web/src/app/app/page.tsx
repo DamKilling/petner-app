@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarClock, PawPrint, Sparkles, UsersRound } from "lucide-react";
+import { ArrowRight, CalendarClock, PawPrint, Sparkles, TreePine, UsersRound } from "lucide-react";
 
 import { ButtonLink, PageHeader, Panel } from "@/components/ui";
 import { BookingTimeline, MetricStrip, NotificationItem, PetCard, ReviewHighlight, ServiceCard } from "@/components/product-ui";
@@ -41,6 +41,25 @@ export default async function AppHomePage() {
           { label: "新消息 / 提醒", value: data.unreadNotificationCount, hint: "聊天与预约状态更新" },
         ]}
       />
+
+      <Panel className="overflow-hidden border-[#f06f4f]/16 bg-[linear-gradient(135deg,#fff7ef_0%,#f1f7ee_100%)]">
+        <div className="grid gap-5 md:grid-cols-[auto_1fr_auto] md:items-center">
+          <div className="flex size-14 items-center justify-center rounded-[1.35rem] bg-[#1f1916] text-[#f6c07b]">
+            <TreePine className="size-6" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#b14e31]">Interactive Tree</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight">你的沉浸式互动圣诞树还在这里</h2>
+            <p className="mt-2 text-sm leading-6 text-black/58">
+              进入成长树可以继续新增记忆；进入互动圣诞树可以查看照片挂饰、播放音乐和使用按钮/手势互动。
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 md:justify-end">
+            <ButtonLink href="/app/tree/interactive">进入互动圣诞树</ButtonLink>
+            <ButtonLink href="/app/tree" variant="secondary">管理成长记录</ButtonLink>
+          </div>
+        </div>
+      </Panel>
 
       <section className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
         <Panel className="overflow-hidden bg-[#1f1916] text-white">

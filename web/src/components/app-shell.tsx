@@ -7,6 +7,7 @@ import {
   MessageCircleMore,
   PawPrint,
   ShieldCheck,
+  TreePine,
   UserRound,
   UsersRound,
 } from "lucide-react";
@@ -23,6 +24,7 @@ const desktopNavItems = [
   { href: "/app/match?tab=community", label: "社区", icon: UsersRound, key: "community" },
   { href: "/app/match?tab=services", label: "服务", icon: Compass, key: "services" },
   { href: "/app/profile?tab=pets", label: "宠物", icon: PawPrint, key: "pets" },
+  { href: "/app/tree", label: "成长树", icon: TreePine, key: "tree" },
   { href: "/app/chats", label: "消息", icon: MessageCircleMore, key: "messages" },
   { href: "/app/profile?tab=account", label: "我的", icon: UserRound, key: "account" },
 ];
@@ -31,8 +33,8 @@ const mobileNavItems = [
   { href: "/app", label: "概览", icon: Grid2x2, key: "overview" },
   { href: "/app/match?tab=community", label: "社区", icon: UsersRound, key: "community" },
   { href: "/app/match?tab=services", label: "服务", icon: Compass, key: "services" },
+  { href: "/app/tree", label: "成长树", icon: TreePine, key: "tree" },
   { href: "/app/chats", label: "消息", icon: MessageCircleMore, key: "messages" },
-  { href: "/app/profile?tab=account", label: "我的", icon: UserRound, key: "account" },
 ];
 
 function resolveActiveKey(pathname: string, searchParams: { get(name: string): string | null }) {
@@ -45,7 +47,7 @@ function resolveActiveKey(pathname: string, searchParams: { get(name: string): s
   }
 
   if (pathname.startsWith("/app/tree")) {
-    return "pets";
+    return "tree";
   }
 
   if (pathname.startsWith("/app/match/pets")) {
