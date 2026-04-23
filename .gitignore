@@ -1,0 +1,19 @@
+.DS_Store
+Thumbs.db
+
+# Local agent notes and handoff scratch files
+AGENT.md
+
+# Xcode user/local workspace state
+**/xcuserdata/
+*.xcuserstate
+PetLife.xcodeproj/project.xcworkspace/
+
+# macOS zip extraction leftovers
+__MACOSX/
+
+# Local duplicate/unpacked copies
+petner-app-main 2/
+
+# Unused legacy audio from an external prototype
+web/public/audio/noel-gestures.mp3
