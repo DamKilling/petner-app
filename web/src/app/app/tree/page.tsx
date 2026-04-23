@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { addMemory } from "@/app/actions";
-import { ButtonLink, EmptyState, Field, PageHeader, Panel, SelectField, SubmitButton, TextArea } from "@/components/ui";
+import { MemoryComposerForm } from "@/components/memory-composer-form";
+import { ButtonLink, EmptyState, PageHeader, Panel } from "@/components/ui";
 import { getCurrentUser, getMemories } from "@/lib/data";
 import { accentSoftClasses } from "@/lib/theme";
 
@@ -23,7 +23,7 @@ export default async function TreePage() {
           {memories.length ? (
             memories.map((memory) => (
               <Link
-                className="group rounded-[2rem] border border-black/10 bg-white/78 p-6 hover:-translate-y-0.5 hover:bg-white"
+                className="group rounded-[2rem] border border-black/10 bg-white/78 p-6 transition hover:-translate-y-0.5 hover:bg-white"
                 href={`/app/tree/${memory.id}`}
                 key={memory.id}
               >
@@ -40,25 +40,7 @@ export default async function TreePage() {
         </section>
 
         <Panel>
-          <h2 className="text-2xl font-semibold">新增记忆</h2>
-          <form action={addMemory} className="mt-6 grid gap-4">
-            <Field label="标题" name="title" required />
-            <Field label="副标题" name="subtitle" required />
-            <Field defaultValue="2026.04.23" label="日期" name="date_text" required />
-            <TextArea label="完整故事" name="story" required />
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field defaultValue="star" label="装饰图标" name="ornament" />
-              <SelectField defaultValue="pine" label="主题色" name="accent">
-                <option value="pine">Pine</option>
-                <option value="ember">Ember</option>
-                <option value="peach">Peach</option>
-                <option value="mint">Mint</option>
-              </SelectField>
-            </div>
-            <Field label="照片" name="photo" type="file" />
-            <Field label="音频" name="audio" type="file" />
-            <SubmitButton>保存并查看详情</SubmitButton>
-          </form>
+          <MemoryComposerForm userID={user?.id ?? "demo"} />
         </Panel>
       </div>
     </div>

@@ -28,6 +28,21 @@ function text(formData: FormData, key: string, fallback = "") {
   return String(formData.get(key) ?? fallback).trim();
 }
 
+function ownedStoragePath(
+  userID: string,
+  scope: string,
+  entityID: string,
+  value: FormDataEntryValue | null,
+) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const path = value.trim();
+  const expectedPrefix = `${userID}/${scope}/${entityID}/`;
+  return path.startsWith(expectedPrefix) ? path : null;
+}
+
 async function uploadOwnerFile(
   userID: string,
   scope: string,
@@ -190,10 +205,16 @@ export async function addPet(formData: FormData) {
 
 export async function addMemory(formData: FormData) {
   const { supabase, user } = await getAuthenticatedSupabase();
-  const memoryID = crypto.randomUUID();
-  const photoPath = await uploadOwnerFile(user.id, "memories", memoryID, formData.get("photo"));
+  const submittedMemoryID = text(formData, "memory_id");
+  const memoryID = submittedMemoryID || crypto.randomUUID();
+  const photoPath =
+    ownedStoragePath(user.id, "memories", memoryID, formData.get("photo_path")) ??
+    (await uploadOwnerFile(user.id, "memories", memoryID, formData.get("photo")));
   const audioFile = formData.get("audio");
-  const audioPath = await uploadOwnerFile(user.id, "memories", memoryID, audioFile);
+  const audioPath =
+    ownedStoragePath(user.id, "memories", memoryID, formData.get("audio_path")) ??
+    (await uploadOwnerFile(user.id, "memories", memoryID, audioFile));
+  const uploadedAudioDisplayName = text(formData, "audio_display_name") || null;
 
   const { error } = await supabase.from("memories").insert({
     id: memoryID,
@@ -206,7 +227,8 @@ export async function addMemory(formData: FormData) {
     accent: text(formData, "accent", "pine"),
     photo_path: photoPath,
     audio_path: audioPath,
-    audio_display_name: audioFile instanceof File && audioFile.size > 0 ? audioFile.name : null,
+    audio_display_name:
+      uploadedAudioDisplayName ?? (audioFile instanceof File && audioFile.size > 0 ? audioFile.name : null),
   });
 
   if (error) {
@@ -214,6 +236,7 @@ export async function addMemory(formData: FormData) {
   }
 
   revalidatePath("/app/tree");
+  revalidatePath("/app/tree/interactive");
   redirect(`/app/tree/${memoryID}`);
 }
 

@@ -2,7 +2,7 @@
 
 import { ArrowLeft, Camera, Hand, Images, Music, Pause, Sparkles, TreePine, Upload } from "lucide-react";
 import Link from "next/link";
-import { startTransition, useEffect, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
@@ -93,6 +93,8 @@ export function InteractiveChristmasTree({
   const objectUrlsRef = useRef<string[]>([]);
   const addPhotoRef = useRef<(source: string, label?: string) => void>(() => undefined);
   const applyModeRef = useRef<(nextMode: TreeMode, source?: string) => void>(() => undefined);
+  const performanceModeRef = useRef(false);
+  const setRenderQualityRef = useRef<(enabled: boolean) => void>(() => undefined);
 
   const [mode, setMode] = useState<TreeMode>("TREE");
   const [isGestureEnabled, setIsGestureEnabled] = useState(false);
@@ -101,6 +103,13 @@ export function InteractiveChristmasTree({
   const [status, setStatus] = useState("按钮可用，点击后再请求摄像头权限。");
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const [isPerformanceMode, setIsPerformanceMode] = useState(false);
+
+  const setPerformanceMode = useCallback((enabled: boolean) => {
+    performanceModeRef.current = enabled;
+    setIsPerformanceMode(enabled);
+    setRenderQualityRef.current(enabled);
+  }, []);
 
   function playMusic() {
     const audio = audioRef.current;
@@ -183,7 +192,7 @@ export function InteractiveChristmasTree({
     };
   }, []);
 
-  function stopCamera() {
+  const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
 
@@ -193,7 +202,8 @@ export function InteractiveChristmasTree({
 
     gestureEnabledRef.current = false;
     setIsGestureEnabled(false);
-  }
+    setPerformanceMode(false);
+  }, [setPerformanceMode]);
 
   async function enableGestures() {
     if (gestureEnabledRef.current || isGestureLoading) {
@@ -207,6 +217,7 @@ export function InteractiveChristmasTree({
 
     setCameraError(null);
     setIsGestureLoading(true);
+    setPerformanceMode(true);
     setStatus("正在加载手势模型和摄像头...");
 
     try {
@@ -227,8 +238,8 @@ export function InteractiveChristmasTree({
         audio: false,
         video: {
           facingMode: "user",
-          height: { ideal: 540 },
-          width: { ideal: 720 },
+          height: { ideal: 360 },
+          width: { ideal: 480 },
         },
       });
 
@@ -241,7 +252,7 @@ export function InteractiveChristmasTree({
 
       gestureEnabledRef.current = true;
       setIsGestureEnabled(true);
-      setStatus("手势已开启：握拳成树，张掌散开，V 手势聚焦。");
+      setStatus("手势已开启，并自动进入性能模式：握拳成树，张掌散开，V 手势聚焦。");
       playMusic();
     } catch (error) {
       stopCamera();
@@ -307,14 +318,24 @@ export function InteractiveChristmasTree({
 
     const composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
-    composer.addPass(
-      new UnrealBloomPass(
-        new THREE.Vector2(host.clientWidth, host.clientHeight),
-        0.34,
-        0.28,
-        0.78,
-      ),
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(host.clientWidth, host.clientHeight),
+      0.34,
+      0.28,
+      0.78,
     );
+    composer.addPass(bloomPass);
+
+    setRenderQualityRef.current = (enabled: boolean) => {
+      const pixelRatioLimit = enabled ? (isCompact ? 0.85 : 1.05) : isCompact ? 1.2 : 1.55;
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, pixelRatioLimit));
+      renderer.setSize(host.clientWidth, host.clientHeight);
+      composer.setSize(host.clientWidth, host.clientHeight);
+      bloomPass.strength = enabled ? 0.14 : 0.3;
+      bloomPass.radius = enabled ? 0.14 : 0.24;
+      bloomPass.threshold = enabled ? 0.88 : 0.8;
+    };
+    setRenderQualityRef.current(performanceModeRef.current);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.autoRotate = true;
@@ -678,6 +699,7 @@ export function InteractiveChristmasTree({
 
     const clock = new THREE.Clock();
     let lastGestureAt = 0;
+    let frameIndex = 0;
     let hasReportedRecognitionError = false;
 
     function predictGesture(now: number) {
@@ -688,7 +710,7 @@ export function InteractiveChristmasTree({
         return;
       }
 
-      if (now - lastGestureAt < 260) {
+      if (now - lastGestureAt < 600) {
         return;
       }
 
@@ -724,8 +746,10 @@ export function InteractiveChristmasTree({
     }
 
     function animate(now: number) {
+      frameIndex += 1;
       const elapsed = clock.getElapsedTime();
       const currentMode = modeRef.current;
+      const performanceMode = performanceModeRef.current;
       const lerpAmount = currentMode === "SCATTER" ? 0.028 : 0.045;
 
       particles.forEach((particle, index) => {
@@ -755,24 +779,26 @@ export function InteractiveChristmasTree({
       });
       lightMesh.instanceMatrix.needsUpdate = true;
 
-      snowData.forEach((snow, index) => {
-        snow.position.y -= snow.speed;
+      if (!performanceMode || frameIndex % 3 === 0) {
+        snowData.forEach((snow, index) => {
+          snow.position.y -= performanceMode ? snow.speed * 1.8 : snow.speed;
 
-        if (snow.position.y < -4.7) {
-          snow.position.y = 6.2;
-        }
+          if (snow.position.y < -4.7) {
+            snow.position.y = 6.2;
+          }
 
-        dummy.position.set(
-          snow.position.x + Math.sin(elapsed * 0.45 + snow.phase) * snow.drift,
-          snow.position.y,
-          snow.position.z + Math.cos(elapsed * 0.35 + snow.phase) * snow.drift,
-        );
-        dummy.quaternion.identity();
-        dummy.scale.setScalar(0.72 + seededNoise(index + 407) * 1.6);
-        dummy.updateMatrix();
-        snowMesh.setMatrixAt(index, dummy.matrix);
-      });
-      snowMesh.instanceMatrix.needsUpdate = true;
+          dummy.position.set(
+            snow.position.x + Math.sin(elapsed * 0.45 + snow.phase) * snow.drift,
+            snow.position.y,
+            snow.position.z + Math.cos(elapsed * 0.35 + snow.phase) * snow.drift,
+          );
+          dummy.quaternion.identity();
+          dummy.scale.setScalar(0.72 + seededNoise(index + 407) * 1.6);
+          dummy.updateMatrix();
+          snowMesh.setMatrixAt(index, dummy.matrix);
+        });
+        snowMesh.instanceMatrix.needsUpdate = true;
+      }
       star.rotation.y += 0.018;
       star.rotation.x = Math.sin(elapsed * 1.3) * 0.18;
 
@@ -783,6 +809,7 @@ export function InteractiveChristmasTree({
         photo.group.rotation.z += Math.sin(elapsed + photo.spin) * 0.0008;
       });
 
+      controls.autoRotateSpeed = performanceMode ? 0.18 : 0.45;
       controls.update();
       predictGesture(now);
       composer.render();
@@ -833,8 +860,9 @@ export function InteractiveChristmasTree({
       objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
       objectUrlsRef.current = [];
       addPhotoRef.current = () => undefined;
+      setRenderQualityRef.current = () => undefined;
     };
-  }, [memories]);
+  }, [memories, stopCamera]);
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-[#030605] text-white">
@@ -843,34 +871,41 @@ export function InteractiveChristmasTree({
 
       <div ref={containerRef} className="absolute inset-0" />
 
-      <header className="absolute left-4 right-4 top-4 z-10 flex flex-col gap-3 rounded-[1.75rem] border border-white/10 bg-black/25 p-4 backdrop-blur-xl md:left-6 md:right-6 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-4">
+      <header className="absolute left-3 right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-10 flex flex-col gap-3 rounded-[1.35rem] border border-white/10 bg-black/28 p-3 backdrop-blur-xl md:left-6 md:right-6 md:top-6 md:flex-row md:items-center md:justify-between md:rounded-[1.75rem] md:p-4">
+        <div className="flex items-center gap-3 md:gap-4">
           <Link
             href="/app/tree"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:-translate-y-0.5 hover:bg-white/18"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:-translate-y-0.5 hover:bg-white/18 md:h-11 md:w-11"
             aria-label="返回成长树"
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-[#f7c96b]">Interactive Tree</p>
-            <h1 className="text-2xl font-semibold tracking-tight md:text-4xl">沉浸式互动圣诞树</h1>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[#f7c96b] md:text-xs md:tracking-[0.32em]">
+              Interactive Tree
+            </p>
+            <h1 className="text-xl font-semibold tracking-tight md:text-4xl">沉浸式互动圣诞树</h1>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs text-white/70">
           <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5">{MODE_LABELS[mode]}</span>
           <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5">{photoCount} 张照片</span>
+          {isPerformanceMode ? (
+            <span className="rounded-full border border-[#f7c96b]/20 bg-[#f7c96b]/15 px-3 py-1.5 text-[#f7c96b]">
+              性能模式
+            </span>
+          ) : null}
         </div>
       </header>
 
-      <aside className="absolute bottom-4 left-4 right-4 z-10 rounded-[1.75rem] border border-white/10 bg-black/35 p-4 shadow-[0_24px_90px_rgba(0,0,0,0.35)] backdrop-blur-xl md:bottom-6 md:left-auto md:right-6 md:w-[22rem]">
+      <aside className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 right-3 z-10 max-h-[52svh] overflow-y-auto rounded-[1.35rem] border border-white/10 bg-black/38 p-3 shadow-[0_24px_90px_rgba(0,0,0,0.35)] backdrop-blur-xl md:bottom-6 md:left-auto md:right-6 md:max-h-none md:w-[22rem] md:rounded-[1.75rem] md:p-4">
         <div className="flex items-start gap-3">
-          <div className="rounded-2xl bg-[#f7c96b]/20 p-3 text-[#f7c96b]">
-            <Sparkles className="h-5 w-5" />
+          <div className="rounded-2xl bg-[#f7c96b]/20 p-2.5 text-[#f7c96b] md:p-3">
+            <Sparkles className="h-4 w-4 md:h-5 md:w-5" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold">成长记忆互动模式</h2>
-            <p className="mt-1 text-sm leading-6 text-white/62">{status}</p>
+            <h2 className="text-base font-semibold md:text-lg">成长记忆互动模式</h2>
+            <p className="mt-1 text-xs leading-5 text-white/62 md:text-sm md:leading-6">{status}</p>
           </div>
         </div>
 
@@ -880,14 +915,22 @@ export function InteractiveChristmasTree({
           </p>
         ) : null}
 
-        <div className="mt-5 grid grid-cols-3 gap-2">
+        {!photoCount ? (
+          <div className="mt-4 rounded-[1.2rem] border border-white/10 bg-white/8 p-4 text-center md:hidden">
+            <Images className="mx-auto h-7 w-7 text-[#f7c96b]" />
+            <h2 className="mt-2 text-lg font-semibold">还没有可展示的照片</h2>
+            <p className="mt-2 text-xs leading-5 text-white/58">先新增带照片的记忆，或临时上传几张图片试玩。</p>
+          </div>
+        ) : null}
+
+        <div className="mt-4 grid grid-cols-3 gap-2 md:mt-5">
           {(["TREE", "SCATTER", "FOCUS"] as TreeMode[]).map((item) => (
             <button
               key={item}
               type="button"
               onClick={() => applyMode(item)}
               className={cn(
-                "rounded-2xl border px-3 py-3 text-xs font-semibold transition hover:-translate-y-0.5",
+                "rounded-2xl border px-2 py-2.5 text-[11px] font-semibold transition hover:-translate-y-0.5 md:px-3 md:py-3 md:text-xs",
                 mode === item
                   ? "border-[#f7c96b]/70 bg-[#f7c96b] text-black"
                   : "border-white/10 bg-white/10 text-white hover:bg-white/16",
@@ -898,12 +941,12 @@ export function InteractiveChristmasTree({
           ))}
         </div>
 
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <div className="mt-3 grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={toggleGestures}
             disabled={isGestureLoading}
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-4 text-sm font-semibold transition hover:-translate-y-0.5 hover:bg-white/16 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-3 text-xs font-semibold transition hover:-translate-y-0.5 hover:bg-white/16 disabled:cursor-not-allowed disabled:opacity-60 md:h-12 md:px-4 md:text-sm"
           >
             {isGestureEnabled ? <Camera className="h-4 w-4" /> : <Hand className="h-4 w-4" />}
             {isGestureEnabled ? "关闭手势" : isGestureLoading ? "加载中..." : "启用手势"}
@@ -911,29 +954,29 @@ export function InteractiveChristmasTree({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-4 text-sm font-semibold transition hover:-translate-y-0.5 hover:bg-white/16"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-3 text-xs font-semibold transition hover:-translate-y-0.5 hover:bg-white/16 md:h-12 md:px-4 md:text-sm"
           >
             <Upload className="h-4 w-4" />
             临时上传
           </button>
         </div>
 
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <div className="mt-3 grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={toggleMusic}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-transparent px-4 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-transparent px-3 text-xs font-semibold text-white/80 transition hover:bg-white/10 md:h-11 md:px-4 md:text-sm"
           >
             {isMusicPlaying ? <Pause className="h-4 w-4" /> : <Music className="h-4 w-4" />}
             {isMusicPlaying ? "暂停音乐" : "播放音乐"}
           </button>
-          <div className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-transparent px-4 text-sm text-white/60">
+          <div className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-transparent px-3 text-xs text-white/60 md:h-11 md:px-4 md:text-sm">
             <Images className="h-4 w-4" />
             刷新不保存临时图
           </div>
         </div>
 
-        <p className="mt-4 text-xs leading-5 text-white/45">
+        <p className="mt-4 text-[11px] leading-5 text-white/45 md:text-xs">
           手势建议在桌面 Chrome/Edge 使用。第一版只读取已有成长照片和本地临时上传，不会把临时图片写回 Supabase。
         </p>
       </aside>
@@ -958,7 +1001,7 @@ export function InteractiveChristmasTree({
       )}
 
       {!photoCount ? (
-        <div className="pointer-events-none absolute inset-x-6 top-1/2 z-10 mx-auto max-w-sm -translate-y-1/2 rounded-[2rem] border border-white/10 bg-black/35 p-6 text-center backdrop-blur-xl">
+        <div className="pointer-events-none absolute inset-x-6 top-1/2 z-10 mx-auto hidden max-w-sm -translate-y-1/2 rounded-[2rem] border border-white/10 bg-black/35 p-6 text-center backdrop-blur-xl md:block">
           <Images className="mx-auto h-8 w-8 text-[#f7c96b]" />
           <h2 className="mt-3 text-xl font-semibold">还没有可展示的照片</h2>
           <p className="mt-2 text-sm leading-6 text-white/60">可以先在成长树新增带照片的记忆，或在这里临时上传几张图片试玩。</p>
