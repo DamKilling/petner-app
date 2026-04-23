@@ -9,6 +9,13 @@ export type Profile = {
   city: string;
   bio: string;
   avatar_symbol: string;
+  verification_status?: "unverified" | "basic" | "verified";
+  response_rate?: number;
+  response_time_label?: string;
+  rating_avg?: number;
+  rating_count?: number;
+  repeat_booking_count?: number;
+  completed_booking_count?: number;
   created_at: string;
   updated_at: string;
 };
@@ -27,6 +34,14 @@ export type Pet = {
   accent: AccentToken;
   vaccinated: boolean;
   visibility: PetVisibility;
+  sex?: "male" | "female" | "unknown";
+  personality_tags?: string[];
+  energy_level?: "low" | "medium" | "high";
+  social_level?: "shy" | "warm" | "outgoing";
+  health_summary?: string;
+  vaccine_status?: "complete" | "partial" | "unknown";
+  neutered_status?: "yes" | "no" | "unknown";
+  avatar_url?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -100,5 +115,52 @@ export type ChatMessage = {
   thread_id: string;
   sender_id: string;
   text: string;
+  created_at: string;
+};
+
+export type ServiceOffer = {
+  id: string;
+  provider_id: string;
+  provider_name: string;
+  related_pet_id?: string | null;
+  related_pet_name?: string | null;
+  service_types: string[];
+  service_area: string;
+  price_mode: string;
+  availability_summary: string;
+  trust_badges: string[];
+  response_time_label: string;
+  rating_avg: number;
+  rating_count: number;
+  repeat_booking_count: number;
+  intro: string;
+};
+
+export type Booking = {
+  id: string;
+  status: "draft" | "pending" | "confirmed" | "completed" | "cancelled";
+  service_type: string;
+  scheduled_time: string;
+  participants: string[];
+  location_summary: string;
+  price_summary: string;
+  safety_notice: string;
+};
+
+export type ReviewSummary = {
+  rating_avg: number;
+  rating_count: number;
+  highlight_tags: string[];
+  repeat_booking_count: number;
+  quote: string;
+};
+
+export type AppNotification = {
+  id: string;
+  type: "chat" | "booking" | "trust" | "community";
+  title: string;
+  body: string;
+  action_url: string;
+  read: boolean;
   created_at: string;
 };

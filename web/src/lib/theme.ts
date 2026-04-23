@@ -1,5 +1,26 @@
 import type { AccentToken, UploadStatus } from "@/lib/types";
 
+export const designTokens = {
+  background: {
+    base: "#FFF9F2",
+    subtle: "#F6EFE5",
+    raised: "#FFFDFC",
+    dark: "#1F1916",
+  },
+  text: {
+    primary: "#2F241E",
+    secondary: "rgba(47, 36, 30, 0.64)",
+    tertiary: "rgba(47, 36, 30, 0.46)",
+  },
+  accent: {
+    primary: "#F06F4F",
+    primarySoft: "rgba(240, 111, 79, 0.12)",
+    sage: "#9BB89A",
+    trust: "#8CB7D9",
+    gold: "#E7C57A",
+  },
+} as const;
+
 export const accentClasses: Record<AccentToken, string> = {
   ember: "bg-[#f06f4f] text-white",
   pine: "bg-[#1f6f4a] text-white",
@@ -24,3 +45,11 @@ export const statusLabel: Record<UploadStatus, string> = {
   reviewing: "审核中",
   published: "已发布",
 };
+
+export const trustToneClasses = {
+  verified: "border border-emerald-200 bg-emerald-50 text-emerald-700",
+  trust: "border border-sky-200 bg-sky-50 text-sky-700",
+  warm: "border border-orange-200 bg-orange-50 text-orange-700",
+  neutral: "border border-black/10 bg-black/[0.03] text-black/60",
+  warning: "border border-amber-200 bg-amber-50 text-amber-700",
+} as const;

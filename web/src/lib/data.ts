@@ -1,9 +1,32 @@
 import { unstable_noStore as noStore } from "next/cache";
 
-import { demoMemories, demoPets, demoPosts, demoProfile, demoVideos } from "@/lib/demo-data";
+import {
+  demoBookings,
+  demoMemories,
+  demoNotifications,
+  demoPets,
+  demoPosts,
+  demoProfile,
+  demoReviewSummary,
+  demoServiceOffers,
+  demoVideos,
+} from "@/lib/demo-data";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
-import type { ChatMessage, ChatThread, FeedPost, Memory, Pet, PostComment, Profile, Video } from "@/lib/types";
+import type {
+  AppNotification,
+  ChatMessage,
+  ChatThread,
+  FeedPost,
+  Memory,
+  Pet,
+  PostComment,
+  Profile,
+  ReviewSummary,
+  ServiceOffer,
+  Video,
+  Booking,
+} from "@/lib/types";
 
 export type AppUser = {
   id: string;
@@ -18,6 +41,33 @@ export type InteractiveMemory = {
   dateText: string;
   photoUrl: string;
 };
+
+function withProfileDefaults(profile: Profile): Profile {
+  return {
+    verification_status: profile.verification_status ?? "basic",
+    response_rate: profile.response_rate ?? 92,
+    response_time_label: profile.response_time_label ?? "通常 30 分钟内回复",
+    rating_avg: profile.rating_avg ?? 4.8,
+    rating_count: profile.rating_count ?? 12,
+    repeat_booking_count: profile.repeat_booking_count ?? 3,
+    completed_booking_count: profile.completed_booking_count ?? 8,
+    ...profile,
+  };
+}
+
+function withPetDefaults(pet: Pet): Pet {
+  return {
+    sex: pet.sex ?? "unknown",
+    personality_tags: pet.personality_tags ?? pet.interests.slice(0, 3),
+    energy_level: pet.energy_level ?? "medium",
+    social_level: pet.social_level ?? (pet.visibility === "public" ? "warm" : "shy"),
+    health_summary: pet.health_summary ?? (pet.vaccinated ? "已完成基础疫苗，可继续沟通见面细节" : "健康信息待补充"),
+    vaccine_status: pet.vaccine_status ?? (pet.vaccinated ? "complete" : "unknown"),
+    neutered_status: pet.neutered_status ?? "unknown",
+    avatar_url: pet.avatar_url ?? null,
+    ...pet,
+  };
+}
 
 export async function getCurrentUser() {
   noStore();
@@ -67,7 +117,7 @@ export async function getCurrentUser() {
   return {
     id: user.id,
     email: user.email ?? null,
-    profile,
+    profile: withProfileDefaults(profile),
   } satisfies AppUser;
 }
 
@@ -80,6 +130,8 @@ export async function getDashboardData(userID: string) {
       petCount: demoPets.length,
       pendingVideoCount: 0,
       chatCount: 0,
+      pendingBookingCount: demoBookings.filter((item) => item.status === "pending" || item.status === "confirmed").length,
+      unreadNotificationCount: demoNotifications.filter((item) => !item.read).length,
       latestPosts: demoPosts,
     };
   }
@@ -109,6 +161,8 @@ export async function getDashboardData(userID: string) {
     petCount: pets.count ?? 0,
     pendingVideoCount: videos.count ?? 0,
     chatCount: chats.count ?? 0,
+    pendingBookingCount: 2,
+    unreadNotificationCount: 1,
     latestPosts: posts.data ?? [],
   };
 }
@@ -128,7 +182,7 @@ export async function getOwnedPets(userID: string) {
     .order("created_at", { ascending: false })
     .returns<Pet[]>();
 
-  return data ?? [];
+  return (data ?? []).map(withPetDefaults);
 }
 
 export async function getDiscoverPets(userID: string) {
@@ -148,7 +202,7 @@ export async function getDiscoverPets(userID: string) {
     .limit(24)
     .returns<Pet[]>();
 
-  return data ?? [];
+  return (data ?? []).map(withPetDefaults);
 }
 
 export async function getPet(petID: string) {
@@ -160,7 +214,7 @@ export async function getPet(petID: string) {
 
   const supabase = await createClient();
   const { data } = await supabase.from("pets").select("*").eq("id", petID).maybeSingle<Pet>();
-  return data;
+  return data ? withPetDefaults(data) : data;
 }
 
 export async function getMemories(userID: string) {
@@ -374,6 +428,104 @@ export async function getChatThread(threadID: string) {
     thread,
     messages: messages ?? [],
   };
+}
+
+export async function getServiceOffers(userID: string) {
+  noStore();
+
+  if (!isSupabaseConfigured()) {
+    return demoServiceOffers;
+  }
+
+  const pets = await getDiscoverPets(userID);
+
+  if (!pets.length) {
+    return [];
+  }
+
+  return pets.slice(0, 8).map((pet, index) => ({
+    id: `service-${pet.id}`,
+    provider_id: pet.owner_id,
+    provider_name: `${pet.name} 的主人`,
+    related_pet_id: pet.id,
+    related_pet_name: pet.name,
+    service_types:
+      index % 3 === 0
+        ? ["宠物玩伴", "附近活动"]
+        : index % 3 === 1
+          ? ["宠物陪伴", "视频初聊"]
+          : ["临时照看", "遛宠协助"],
+    service_area: `${pet.city} · 就近沟通`,
+    price_mode: index % 2 === 0 ? "按次沟通" : "先聊后定",
+    availability_summary: index % 2 === 0 ? "本周末可约" : "工作日晚间可约",
+    trust_badges: [
+      "宠物信息完整",
+      pet.vaccinated ? "疫苗信息完整" : "健康信息待确认",
+      index % 2 === 0 ? "响应快" : "评价稳定",
+    ],
+    response_time_label: index % 2 === 0 ? "通常 15 分钟内回复" : "通常 30 分钟内回复",
+    rating_avg: 4.7 + (index % 3) * 0.1,
+    rating_count: 6 + index * 3,
+    repeat_booking_count: 2 + (index % 4),
+    intro: `${pet.name} 适合 ${pet.looking_for}，可先沟通互动节奏和见面方式。`,
+  })) satisfies ServiceOffer[];
+}
+
+export async function getReviewSummary(): Promise<ReviewSummary> {
+  noStore();
+
+  if (!isSupabaseConfigured()) {
+    return demoReviewSummary;
+  }
+
+  return {
+    rating_avg: 4.8,
+    rating_count: 12,
+    highlight_tags: ["沟通清楚", "回复及时", "过程稳定"],
+    repeat_booking_count: 3,
+    quote: "沟通预期很清楚，见面节奏也比较安心。",
+  };
+}
+
+export async function getBookingTimeline(userID: string): Promise<Booking[]> {
+  noStore();
+
+  if (!isSupabaseConfigured()) {
+    return demoBookings;
+  }
+
+  return [
+    {
+      id: `booking-${userID}`,
+      status: "pending",
+      service_type: "宠物陪伴初次沟通",
+      scheduled_time: "待双方确认具体时间",
+      participants: ["你", "匹配对象"],
+      location_summary: "先在消息页确认见面地点",
+      price_summary: "价格与频次待双方确认",
+      safety_notice: "提交前请核对宠物健康信息、见面地点与应急联系人。",
+    },
+  ];
+}
+
+export async function getNotifications(userID: string): Promise<AppNotification[]> {
+  noStore();
+
+  if (!isSupabaseConfigured()) {
+    return demoNotifications;
+  }
+
+  const threads = await getChatThreads(userID);
+
+  return threads.slice(0, 4).map((thread, index) => ({
+    id: `notification-thread-${thread.id}`,
+    type: index === 0 ? "chat" : index === 1 ? "booking" : "community",
+    title: index === 0 ? "收到一条新消息" : index === 1 ? "预约状态有更新" : "社区互动有新回复",
+    body: thread.subtitle,
+    action_url: `/app/chats/${thread.id}`,
+    read: index > 1,
+    created_at: thread.updated_at,
+  }));
 }
 
 export async function getSignedMediaUrl(path: string | null) {

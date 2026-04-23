@@ -1,12 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fffaf1;
-  --foreground: #201a16;
-  --pet-cream: #fff1d8;
-  --pet-ink: #201a16;
+  --background: #fff9f2;
+  --foreground: #2f241e;
+  --pet-cream: #f6efe5;
+  --pet-surface: #fffdfc;
+  --pet-ink: #2f241e;
   --pet-accent: #f06f4f;
-  --pet-line: rgba(32, 26, 22, 0.12);
+  --pet-accent-soft: rgba(240, 111, 79, 0.12);
+  --pet-sage: #9bb89a;
+  --pet-trust: #8cb7d9;
+  --pet-line: rgba(47, 36, 30, 0.12);
+  --pet-line-strong: rgba(47, 36, 30, 0.18);
+  --pet-muted: rgba(47, 36, 30, 0.64);
+  --pet-muted-soft: rgba(47, 36, 30, 0.46);
 }
 
 @theme inline {
@@ -19,6 +26,10 @@
 body {
   background: var(--background);
   color: var(--foreground);
+  background-image:
+    radial-gradient(circle at top left, rgba(240, 111, 79, 0.08), transparent 24rem),
+    radial-gradient(circle at 82% 12%, rgba(155, 184, 154, 0.12), transparent 26rem),
+    linear-gradient(180deg, #fffaf4 0%, #fff9f2 46%, #f7f1e8 100%);
 }
 
 button,
@@ -42,4 +53,8 @@ textarea:focus,
 select:focus {
   border-color: var(--pet-accent);
   box-shadow: 0 0 0 3px rgba(240, 111, 79, 0.16);
+}
+
+::selection {
+  background: rgba(240, 111, 79, 0.16);
 }

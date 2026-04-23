@@ -8,26 +8,26 @@ export function PageHeader({
   title,
   description,
   action,
+  className,
 }: {
   eyebrow?: string;
   title: string;
   description?: string;
   action?: ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="flex flex-col gap-5 border-b border-black/10 pb-8 md:flex-row md:items-end md:justify-between">
+    <div className={cn("grid gap-5 border-b border-black/8 pb-7 md:grid-cols-[1fr_auto] md:items-end", className)}>
       <div className="max-w-3xl">
         {eyebrow ? (
-          <p className="mb-3 text-sm font-semibold uppercase tracking-[0.24em] text-[#f06f4f]">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.26em] text-[#f06f4f]">
             {eyebrow}
           </p>
         ) : null}
-        <h1 className="text-4xl font-semibold tracking-tight md:text-6xl">{title}</h1>
-        {description ? (
-          <p className="mt-4 max-w-2xl text-base leading-7 text-black/60">{description}</p>
-        ) : null}
+        <h1 className="text-4xl font-semibold tracking-tight text-[#2f241e] md:text-6xl">{title}</h1>
+        {description ? <p className="mt-4 max-w-2xl text-base leading-7 text-black/62">{description}</p> : null}
       </div>
-      {action}
+      {action ? <div className="md:justify-self-end">{action}</div> : null}
     </div>
   );
 }
@@ -42,7 +42,7 @@ export function Panel({
   return (
     <section
       className={cn(
-        "rounded-[2rem] border border-black/10 bg-white/78 p-6 shadow-[0_24px_80px_rgba(47,35,22,0.08)] backdrop-blur",
+        "rounded-[2rem] border border-black/8 bg-white/80 p-5 shadow-[0_24px_80px_rgba(47,35,22,0.06)] backdrop-blur md:p-6",
         className,
       )}
     >
@@ -55,10 +55,12 @@ export function ButtonLink({
   href,
   children,
   variant = "primary",
+  className,
 }: {
   href: string;
   children: ReactNode;
-  variant?: "primary" | "secondary";
+  variant?: "primary" | "secondary" | "ghost";
+  className?: string;
 }) {
   return (
     <Link
@@ -66,8 +68,11 @@ export function ButtonLink({
       className={cn(
         "inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold",
         variant === "primary"
-          ? "bg-[#201a16] text-white hover:-translate-y-0.5 hover:bg-[#352820]"
-          : "border border-black/10 bg-white/70 text-[#201a16] hover:-translate-y-0.5 hover:bg-white",
+          ? "bg-[#f06f4f] text-white shadow-[0_14px_28px_rgba(240,111,79,0.22)] hover:-translate-y-0.5 hover:bg-[#df5e3e]"
+          : variant === "secondary"
+            ? "border border-black/10 bg-white/78 text-[#2f241e] hover:-translate-y-0.5 hover:bg-white"
+            : "text-[#b54a2f] hover:text-[#963c23]",
+        className,
       )}
     >
       {children}
@@ -78,9 +83,11 @@ export function ButtonLink({
 export function SubmitButton({
   children,
   variant = "primary",
+  className,
 }: {
   children: ReactNode;
-  variant?: "primary" | "danger";
+  variant?: "primary" | "danger" | "secondary";
+  className?: string;
 }) {
   return (
     <button
@@ -88,7 +95,10 @@ export function SubmitButton({
         "inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold",
         variant === "danger"
           ? "bg-red-50 text-red-600 hover:bg-red-100"
-          : "bg-[#f06f4f] text-white hover:-translate-y-0.5 hover:bg-[#df5e3e]",
+          : variant === "secondary"
+            ? "border border-black/10 bg-white/78 text-[#2f241e] hover:bg-white"
+            : "bg-[#f06f4f] text-white shadow-[0_14px_28px_rgba(240,111,79,0.22)] hover:-translate-y-0.5 hover:bg-[#df5e3e]",
+        className,
       )}
       type="submit"
     >
@@ -179,11 +189,20 @@ export function SelectField({
   );
 }
 
-export function EmptyState({ title, detail }: { title: string; detail: string }) {
+export function EmptyState({
+  title,
+  detail,
+  action,
+}: {
+  title: string;
+  detail: string;
+  action?: ReactNode;
+}) {
   return (
-    <div className="rounded-[1.5rem] border border-dashed border-black/15 bg-white/45 p-8 text-center">
+    <div className="rounded-[1.6rem] border border-dashed border-black/14 bg-white/46 p-8 text-center">
       <h3 className="text-lg font-semibold">{title}</h3>
       <p className="mt-2 text-sm leading-6 text-black/55">{detail}</p>
+      {action ? <div className="mt-5">{action}</div> : null}
     </div>
   );
 }
