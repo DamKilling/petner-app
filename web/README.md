@@ -1,36 +1,117 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PetLife Web
+
+This is the active Web version of PetLife, built with Next.js App Router, TypeScript, Tailwind CSS, and Supabase.
+
+PetLife Web is not a marketing-only site. It is a responsive app prototype for pet community, pet companionship, service discovery, booking handoff, chat, growth records, and immersive pet memories.
+
+## Features
+
+- Public landing page with warm product positioning and scroll reveal animation
+- Supabase Auth login/register flow
+- Protected app workspace under `/app`
+- Community feed, post detail, likes, comments, and chat entry
+- Service marketplace with offers, requests, detail pages, booking states, and service reviews
+- Pet profile and user profile areas
+- Growth record center with memory creation and detail pages
+- Interactive Christmas tree at `/app/tree/interactive`
+- Chinese / English UI switcher using the `petlife-locale` cookie
+- Supabase SQL migrations and RLS policies
+
+## Tech Stack
+
+- Next.js 16 App Router
+- React 19
+- TypeScript
+- Tailwind CSS 4
+- Supabase SSR and Supabase JS
+- Three.js, GSAP, and MediaPipe Tasks Vision for the interactive tree
+- Vercel deployment
 
 ## Getting Started
 
-First, run the development server:
+Install dependencies:
+
+```bash
+npm install
+```
+
+Create `.env.local`:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+```
+
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```text
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scripts
 
-## Learn More
+```bash
+npm run dev
+npm run lint
+npm run build
+npm run start
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Supabase
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Apply migrations from:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```text
+web/supabase/migrations/
+```
 
-## Deploy on Vercel
+Current migrations:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `202604230001_petlife_web_schema.sql`
+- `202604290001_services_bookings.sql`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The app expects RLS to be enabled and uses user-scoped Server Actions for mutations. Do not expose a Supabase service-role key to the client.
+
+## Important Routes
+
+- `/` - public landing page
+- `/login` - login/register
+- `/app` - protected overview
+- `/app/match` - community and service workspace
+- `/app/match?tab=services` - service marketplace
+- `/app/tree` - growth records
+- `/app/tree/interactive` - immersive interactive Christmas tree
+- `/app/chats` - chat list
+- `/app/profile` - profile and account area
+
+## Deployment
+
+Use Vercel with:
+
+- Root directory: `web`
+- Framework preset: Next.js
+- Build command: `npm run build`
+
+Configure environment variables in Vercel Project Settings:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+```
+
+## Verification
+
+Before pushing UI or app changes, run:
+
+```bash
+npm run lint
+npm run build
+```
+
+For visual changes, manually check both desktop and mobile widths. The interactive tree should also be checked on mobile because in-app browsers and camera permission flows can behave differently from desktop Chrome/Edge.

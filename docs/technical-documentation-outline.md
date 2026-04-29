@@ -1,147 +1,177 @@
-# PetLife Technical Documentation Outline
+# PetLife Technical Documentation
 
-> Scope note: this outline documents the SwiftUI iOS prototype only. The Next.js + Supabase Web app now lives under `web/` and should be documented separately from the iOS prototype.
+This document summarizes the current technical state of the PetLife repository. The repository contains two product surfaces: the original SwiftUI iOS prototype and the active Next.js Web app.
 
 ## 1. Project Overview
 
-PetLife is an iOS prototype built with SwiftUI and Observation. The project explores a pet life-cycle product shell that combines pet records, publishing, social discovery, and communication.
+PetLife is a pet social, companionship, and service platform prototype. The product direction combines:
 
-Confirmed facts:
+- Community content and pet discovery
+- Pet profiles and growth records
+- Service offers, service requests, booking handoff, and reviews
+- Chat threads tied to pet, post, or service context
+- Immersive memory experiences such as the interactive Christmas tree
 
-- The current project includes core prototype flows for authentication entry, main Tab navigation, pet profiles, growth/holiday memories, video publishing, social feed posts, comments, and chat.
-- The implementation is still at the prototype stage and mainly uses local in-memory data to simulate backend behavior.
-- The project has not integrated a real external API, real account system, real media upload pipeline, or cloud database.
-
-Unverified or planned items:
-
-- This environment cannot run Xcode builds or simulator validation, so the project cannot be described as runtime-tested here.
-- The complete main flow still needs to be validated in a macOS + Xcode environment.
+The Web app is currently the active implementation path because it can be developed, deployed, and tested without an Apple Developer account.
 
 ## 2. Current Technology Stack
 
-Confirmed facts:
+### Web
 
-- UI framework: SwiftUI.
-- State management: Observation, with `AppModel` as the main state container.
-- Target platform: iOS 17.
-- Swift configuration: Swift 5.
-- Bundle ID: `com.petlife.app`.
-- Data layer: local `InMemoryPetBackend` actor that simulates asynchronous backend operations.
+- Framework: Next.js App Router
+- Language: TypeScript
+- UI: React 19 and Tailwind CSS
+- Auth/database/storage: Supabase
+- Realtime/chat refresh: minimal refresh/subscription-oriented components
+- 3D interaction: Three.js, GSAP, and MediaPipe Tasks Vision
+- Deployment target: Vercel
 
-Unverified or planned items:
+### iOS
 
-- The project currently does not use Firebase, Supabase, Firestore, Postgres, or a real custom API.
-- The project currently does not integrate real image or video object storage.
+- UI framework: SwiftUI
+- State management: Observation
+- Target platform: iOS 17
+- Primary state container: `AppModel`
+- Prototype backend: local in-memory backend boundary
 
-## 3. Current Architecture
+## 3. Web Architecture
 
-Confirmed facts:
+Confirmed structure:
 
-- `PetLife/App/PetLifeApp.swift` is the application entry point and initializes `AppModel`.
-- `PetLife/App/RootTabView.swift` handles loading state, authentication state, and the main Tab shell.
-- `PetLife/Shared/AppState.swift` contains app-level state, session-related state, simulated backend operations, and business action orchestration.
-- `PetLife/Shared/Models.swift` defines the domain models for users, pets, memories, videos, feed posts, comments, and chat threads.
-- `PetLife/Features` is organized by feature areas, including Auth, Home, ChristmasTree, Video, Match, and Profile.
+- `web/src/app` contains App Router pages for public routes, login, protected app pages, service details, booking details, tree, videos, chats, and profile.
+- `web/src/components` contains product UI, app shell, marketing shell, language switcher, reveal-on-scroll, and interactive Christmas tree components.
+- `web/src/lib` contains data access, demo fallback data, i18n, theme, shared types, and utilities.
+- `web/supabase/migrations` contains database schema migrations.
 
-Suggested architecture data flow:
+Main Web data flow:
 
 ```text
-Feature View
--> calls an async action on AppModel
--> AppModel calls InMemoryPetBackend
--> Backend returns BootstrapPayload or a business result
--> AppModel applies the updated state
--> SwiftUI refreshes the UI through Observation
+Route / Server Component
+-> data helper in web/src/lib/data.ts
+-> Supabase client or demo fallback
+-> page renders product components
+-> Server Action handles mutation
+-> route refresh / redirect updates UI
 ```
 
-## 4. Completed Progress
+The Web app uses a lightweight i18n layer:
 
-Confirmed facts:
+- Locale type: `zh | en`
+- Cookie: `petlife-locale`
+- Default language: Chinese
+- User-generated content is not auto-translated
 
-- The authentication entry and authenticated main shell have been established. Unauthenticated users see the authentication view, and authenticated users enter the TabView shell.
-- The pet profile flow supports prototype-level pet creation and owned-pet display.
-- The growth/holiday memory flow supports memory creation and timeline display.
-- The video module includes a prototype publishing form, upload queue, and published/review list presentation.
-- The social module includes pet recommendations, feed posts, likes, comments, detail pages, and chat entry points.
-- Recent fixes cover session cleanup, chat/detail routing stability, and opening the newly created post detail after publishing.
+## 4. Supabase Data Model
 
-Unverified or planned items:
+The current migrations cover:
 
-- The progress above is based on static review of code and project documentation. It has not been compiled, run in a simulator, or tested on a physical device in this environment.
-- The timing between closing the publishing sheet and navigating to the newly created post detail still needs runtime validation.
+- `profiles`
+- `pets`
+- `memories`
+- `videos`
+- `feed_posts`
+- `post_likes`
+- `post_comments`
+- `chat_threads`
+- `chat_messages`
+- `service_offers`
+- `service_requests`
+- `bookings`
+- `service_reviews`
 
-## 5. Current Limitations and Risks
+RLS is expected to protect user-owned records, private service/booking records, and chat participation. Client code must never use a service-role key.
 
-Confirmed facts:
+## 5. Key Product Flows
 
-- The current Windows/PowerShell environment does not recognize `xcodebuild`, so iOS compilation cannot be verified here.
-- Data is mainly stored in memory and does not yet support persistence, cross-device sync, or real multi-user isolation.
-- The media publishing flow is a prototype-level queue and presentation flow. It is not equivalent to real video file upload.
-- Some Chinese text appears garbled in PowerShell output, so this environment cannot confirm that all UI copy renders correctly on device.
+### Community
 
-Unverified or planned items:
+- Browse pet/community content
+- Create feed posts
+- Open post detail
+- Like and comment
+- Open chat from pet or post context
 
-- Chinese copy, navigation stacks, sheet behavior, and Tab switching need to be checked in a macOS/Xcode environment.
-- After a real backend is introduced, session isolation, chat thread ownership, post-detail routing, and comment persistence need to be revalidated.
+### Services
 
-## 6. Near-Term Technical Plan
+- Browse service offers
+- Browse service requests
+- Filter by service type
+- Create service offer or request
+- Open detail before contacting or booking
+- Create booking draft
+- Advance booking status
+- Submit review after completion
 
-Phase 1: runtime validation and regression checks.
+### Growth Records
 
-- Build the project in a macOS + Xcode environment.
-- Use the simulator to validate the main flows: sign in, sign out, add pet, add memory, publish video, open post detail, comment, and chat.
-- Prioritize regression checks for session isolation, chat routing, post-detail routing, and local state refresh.
+- Create and view memories
+- Upload or reference media through Supabase-oriented helpers
+- Open memory detail
+- Enter interactive Christmas tree mode
 
-Phase 2: backend replacement boundary design.
+### Interactive Christmas Tree
 
-- Preserve the View -> `AppModel` -> backend calling boundary.
-- Define data interfaces for authentication, pet profiles, feed posts, comments, and chat threads first.
-- Avoid making Feature Views depend directly on a specific backend SDK.
+- Renders a procedural Three.js tree with lights, snow, magic dust, photos, and music controls
+- Supports TREE / SCATTER / FOCUS states
+- Supports temporary local photo upload without writing back to Supabase
+- Supports optional gesture initialization after user interaction
+- Has mobile chrome collapse to reduce UI obstruction
 
-Phase 3: data persistence and media storage.
+## 6. iOS Architecture
 
-- Gradually replace in-memory data with a real database or cloud service.
-- Design a separate media storage layer for video and image assets.
-- Define the state transitions between local drafts, upload status, and remote media URLs.
+Confirmed structure:
 
-Phase 4: minimum test and acceptance checklist.
+- `PetLife/App/PetLifeApp.swift` initializes the app.
+- `PetLife/App/RootTabView.swift` handles loading, auth state, and the main tab shell.
+- `PetLife/Shared/AppState.swift` contains app-level state, session logic, simulated backend operations, and business orchestration.
+- `PetLife/Shared/Models.swift` defines user, pet, memory, video, feed, comment, and chat models.
+- `PetLife/Features` contains Auth, Home, ChristmasTree, Video, Match, and Profile feature views.
 
-- Create a manual acceptance script for course/demo review.
-- Add regression checks for high-risk flows: data isolation after sign-out, opening the correct chat target, and opening the correct post detail.
-- Record static review results and runtime verification results separately to avoid overstating delivery progress.
+Current iOS limitations:
+
+- Cannot be built or run in the current Windows environment.
+- Still needs macOS/Xcode verification.
+- Real backend and media storage are not the active iOS implementation target right now.
 
 ## 7. Verification Plan
 
-Static review:
+### Web static and build checks
 
-- Check whether the call chain between `AppModel`, `InMemoryPetBackend`, and Feature Views is consistent.
-- Check whether model identity uses stable IDs instead of display text as system identity.
-- Check whether publishing, comments, chat, and detail navigation can be traced to explicit target objects.
+Run from `web/`:
 
-Build verification:
+```bash
+npm run lint
+npm run build
+```
 
-- Open the project in a macOS + Xcode environment.
-- Run a clean build.
-- Record compilation errors, warnings, and configuration issues that need follow-up.
+### Web manual checks
 
-Manual acceptance:
+- Login/register and logout
+- Protected route redirect
+- Community feed, post detail, like, comment, and chat entry
+- Service marketplace, filters, detail pages, booking flow, and reviews
+- Growth record creation and detail
+- Interactive tree on desktop and mobile widths
+- Chinese / English language switcher
+- Vercel deployment with Supabase environment variables
 
-- Sign in and enter the main Tab shell.
-- Add a pet and confirm that related screens update.
-- Add a memory and confirm that the timeline updates.
-- Publish a video and confirm that the queue or list updates.
-- Publish a feed post, confirm that it appears in the feed, and try to open the matching detail page.
-- Validate like, comment, and chat entry behavior once each.
+### iOS checks
 
-## 8. Conclusion
+Run on macOS with Xcode:
 
-Confirmed facts:
+- Clean build
+- Sign in / sign out
+- Add pet
+- Add memory
+- Publish video
+- Publish post and open detail
+- Like/comment/chat
+- Validate session cleanup and stable routing
 
-- PetLife currently has a SwiftUI iOS prototype shell that covers the main business modules.
-- The architecture already has an initial separation between Feature Views, `AppModel`, and the local backend actor, which creates a foundation for future backend replacement.
-- Recent work has focused on session isolation, routing correctness, and navigation completeness rather than broad feature expansion.
+## 8. Current Risks and Follow-up
 
-Unverified or planned items:
-
-- The project cannot be claimed as compiled or runtime-tested in the current environment.
-- The next stage should focus on runtime validation, persistence, media storage, backend replacement, and regression checks for critical flows.
+- Hosted Supabase projects must have migrations applied before production data flows are reliable.
+- Service marketplace v1 intentionally avoids payment, map picking, advanced calendars, and automated matching.
+- Interactive tree gesture mode can be expensive on some browsers; manual button controls remain the fallback.
+- iOS runtime behavior is not validated in this Windows environment.
+- Old extracted folders such as `petner-app-main 2` and `__MACOSX` remain local cleanup candidates but should not be committed.
