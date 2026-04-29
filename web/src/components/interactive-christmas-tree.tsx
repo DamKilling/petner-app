@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Camera, Hand, Images, Music, Pause, Sparkles, TreePine, Upload } from "lucide-react";
+import { ArrowLeft, Camera, ChevronDown, ChevronUp, Hand, Images, Music, Pause, Sparkles, TreePine, Upload } from "lucide-react";
 import Link from "next/link";
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
@@ -104,6 +104,7 @@ export function InteractiveChristmasTree({
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [isPerformanceMode, setIsPerformanceMode] = useState(false);
+  const [isMobileChromeCollapsed, setIsMobileChromeCollapsed] = useState(false);
 
   const setPerformanceMode = useCallback((enabled: boolean) => {
     performanceModeRef.current = enabled;
@@ -871,7 +872,14 @@ export function InteractiveChristmasTree({
 
       <div ref={containerRef} className="absolute inset-0" />
 
-      <header className="absolute left-3 right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-10 flex flex-col gap-3 rounded-[1.35rem] border border-white/10 bg-black/28 p-3 backdrop-blur-xl md:left-6 md:right-6 md:top-6 md:flex-row md:items-center md:justify-between md:rounded-[1.75rem] md:p-4">
+      <header
+        className={cn(
+          "absolute left-3 right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-10 flex flex-col gap-3 rounded-[1.35rem] border border-white/10 bg-black/28 p-3 backdrop-blur-xl transition duration-300 md:left-6 md:right-6 md:top-6 md:flex-row md:items-center md:justify-between md:rounded-[1.75rem] md:p-4",
+          isMobileChromeCollapsed
+            ? "pointer-events-none -translate-y-5 opacity-0 md:pointer-events-auto md:translate-y-0 md:opacity-100"
+            : "translate-y-0 opacity-100",
+        )}
+      >
         <div className="flex items-center gap-3 md:gap-4">
           <Link
             href="/app/tree"
@@ -898,7 +906,50 @@ export function InteractiveChristmasTree({
         </div>
       </header>
 
-      <aside className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 right-3 z-10 max-h-[52svh] overflow-y-auto rounded-[1.35rem] border border-white/10 bg-black/38 p-3 shadow-[0_24px_90px_rgba(0,0,0,0.35)] backdrop-blur-xl md:bottom-6 md:left-auto md:right-6 md:max-h-none md:w-[22rem] md:rounded-[1.75rem] md:p-4">
+      {isMobileChromeCollapsed ? (
+        <div className="absolute left-3 right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-20 flex items-center justify-between gap-2 rounded-full border border-white/10 bg-black/42 px-2.5 py-2 text-xs text-white/76 shadow-[0_16px_46px_rgba(0,0,0,0.32)] backdrop-blur-xl md:hidden">
+          <Link
+            href="/app/tree"
+            className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white"
+            aria-label="返回成长树"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <span className="truncate rounded-full bg-white/10 px-2.5 py-1">{MODE_LABELS[mode]}</span>
+            <span className="shrink-0 rounded-full bg-white/10 px-2.5 py-1">{photoCount} 张照片</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsMobileChromeCollapsed(false)}
+            className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-[#f7c96b]/25 bg-[#f7c96b]/18 text-[#f7c96b]"
+            aria-label="展开控制面板"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </button>
+        </div>
+      ) : null}
+
+      <button
+        type="button"
+        onClick={() => setIsMobileChromeCollapsed((collapsed) => !collapsed)}
+        className={cn(
+          "absolute right-4 z-30 inline-flex size-11 items-center justify-center rounded-full border border-white/12 bg-black/48 text-white shadow-[0_16px_48px_rgba(0,0,0,0.4)] backdrop-blur-xl transition duration-300 hover:bg-black/64 md:hidden",
+          isMobileChromeCollapsed
+            ? "bottom-[max(1rem,env(safe-area-inset-bottom))]"
+            : "bottom-[calc(env(safe-area-inset-bottom)+54svh)]",
+        )}
+        aria-label={isMobileChromeCollapsed ? "展开控制面板" : "收起控制面板"}
+      >
+        {isMobileChromeCollapsed ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+      </button>
+
+      <aside
+        className={cn(
+          "absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 right-3 z-10 max-h-[52svh] overflow-y-auto rounded-[1.35rem] border border-white/10 bg-black/38 p-3 shadow-[0_24px_90px_rgba(0,0,0,0.35)] backdrop-blur-xl transition duration-300 md:bottom-6 md:left-auto md:right-6 md:max-h-none md:w-[22rem] md:translate-y-0 md:rounded-[1.75rem] md:p-4 md:opacity-100",
+          isMobileChromeCollapsed ? "pointer-events-none translate-y-[115%] opacity-0 md:pointer-events-auto" : "translate-y-0 opacity-100",
+        )}
+      >
         <div className="flex items-start gap-3">
           <div className="rounded-2xl bg-[#f7c96b]/20 p-2.5 text-[#f7c96b] md:p-3">
             <Sparkles className="h-4 w-4 md:h-5 md:w-5" />
