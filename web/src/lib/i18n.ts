@@ -1,0 +1,677 @@
+export const LOCALE_COOKIE = "petlife-locale";
+
+export const locales = ["zh", "en"] as const;
+
+export type Locale = (typeof locales)[number];
+
+export function normalizeLocale(value?: string | null): Locale {
+  return value === "en" ? "en" : "zh";
+}
+
+export const dictionary = {
+  zh: {
+    common: {
+      language: "语言",
+      chinese: "中文",
+      english: "EN",
+      petlifeTagline: "宠物社交、陪伴与服务",
+      login: "登录",
+      start: "开始使用",
+      viewDetails: "查看详情",
+      book: "预约",
+      contact: "发起联系",
+      reset: "重置",
+      all: "全部",
+      publishService: "发布服务",
+      publishRequest: "发布需求",
+      viewAll: "查看全部",
+      refresh: "刷新",
+      save: "保存",
+      submit: "提交",
+      cancel: "取消",
+      status: "状态",
+      priceMode: "方式",
+      rating: "评分",
+      completed: "完成",
+      repeat: "复约",
+      signOut: "退出登录",
+      notSet: "未标注",
+      noPetRequest: "无宠物档案需求",
+      usuallyReplies: "通常 30 分钟内回复",
+      demoMode:
+        "当前为演示模式，接入 Supabase 后可启用真实协作与身份体系。",
+    },
+    shell: {
+      marketingNav: [
+        { href: "/community", label: "社区精选" },
+        { href: "/services", label: "服务匹配" },
+        { href: "/safety", label: "信任与安全" },
+      ],
+      appNav: {
+        overview: "概览",
+        community: "社区",
+        services: "服务",
+        pets: "宠物",
+        tree: "成长树",
+        messages: "消息",
+        account: "我的",
+      },
+      notifications: "消息与提醒",
+    },
+    landing: {
+      heroEyebrow: "社区优先的宠物陪伴平台",
+      heroTitle: "在一个地方，认识合适的宠物伙伴，也找到靠谱的陪伴与服务。",
+      heroDescription:
+        "PetLife 把宠物社交、成长记录、陪伴匹配和服务流程放进同一套清晰的产品体验里，让浏览、信任、联系和预约都更低摩擦。",
+      primaryCta: "开始使用",
+      secondaryCta: "先看看社区",
+      badges: ["身份认证可见", "宠物信息完整", "历史评价可追溯"],
+      petPreview: "宠物档案预览",
+      coreFeature: "核心特色",
+      socialProfile: "社交画像",
+      energyLevel: "活跃程度",
+      socialFriendly: "社交友好度",
+      high: "高",
+      petSafetyNote:
+        "已完成基础疫苗，可先聊天确认见面节奏，再继续预约线下互动。",
+      featured: [
+        {
+          title: "社区内容流",
+          detail:
+            "照片、视频、问答与找玩伴信息放在同一条可浏览的内容流里，既活跃也不杂乱。",
+          cta: "先看看社区",
+          href: "/community",
+        },
+        {
+          title: "宠物陪伴与匹配",
+          detail:
+            "从附近玩伴、宠物陪伴到临时照看，用清晰步骤把联系和预约串起来。",
+          cta: "寻找玩伴",
+          href: "/services",
+        },
+        {
+          title: "成长记录",
+          detail:
+            "宠物档案、成长故事、照片和视频会被整理成长期可回看的陪伴资产。",
+          cta: "开始建立档案",
+          href: "/app/tree",
+        },
+      ],
+      communityKicker: "社区精选",
+      communityTitle: "先看到真实的宠物日常，再决定要不要进一步联系。",
+      communityDescription:
+        "社区内容流不是一个杂乱的论坛，而是围绕找玩伴、宠物日常、求助问答和经验分享组织的活跃场域。内容里直接带宠物档案和信任提示，方便快速判断。",
+      communityCta: "查看更多内容",
+      petProfileCta: "查看宠物档案",
+      petDailyCta: "看看它的日常",
+      flowKicker: "服务流程",
+      flowTitle: "把服务做成一眼能看懂的步骤，而不是一堆说明文案。",
+      flowSteps: [
+        "浏览社区或服务",
+        "查看宠物 / 主人档案",
+        "发起联系与聊天",
+        "确认时间地点与安全信息",
+        "服务完成后评价",
+      ],
+      trustKicker: "信任与安全",
+      trustTitle: "重要的不是说自己可靠，而是把可靠展示出来。",
+      trustDescription:
+        "PetLife 会把身份认证、宠物信息、历史评价、复约记录、响应速度和流程提示直接放在卡片、详情页和预约流程里，让用户在每一步都知道依据是什么。",
+      trustBullets: [
+        "身份认证与宠物信息状态直接出现在卡片和详情页",
+        "服务流程内展示安全提示、历史记录与下一步动作",
+        "聊天页也能看到宠物档案摘要与预约状态",
+      ],
+      trustCta: "了解平台如何保障安全",
+      finalKicker: "开始使用",
+      finalTitle:
+        "无论你是宠物主人，还是正在寻找陪伴与玩伴，都可以从清晰的下一步开始。",
+      finalDescription:
+        "先建立宠物档案，或先看看附近的社区与匹配信息。PetLife 会把内容、信任和服务流程连接到同一条路径上。",
+      ownerCta: "我是宠物主人，立即开始",
+      serviceCta: "我想找玩伴 / 服务",
+      messagesCta: "看看消息流如何承接",
+    },
+    publicPages: {
+      community: {
+        eyebrow: "Community",
+        title: "真实日常、找玩伴与经验分享，会在同一条内容流里自然发生。",
+        description:
+          "PetLife 的社区不是泛内容论坛，而是围绕宠物关系和陪伴场景组织的内容流。每条内容都尽量带出宠物档案与信任信息，方便继续互动。",
+        action: "进入社区工作区",
+        tabs: ["推荐", "找玩伴", "宠物日常", "求助问答", "经验分享"],
+        completeContent: "查看完整内容流",
+        findPlaymate: "我也想找玩伴",
+      },
+      services: {
+        eyebrow: "Services",
+        title: "服务发现不该靠猜，而应该在列表页就能看懂是否靠谱、是否适合联系。",
+        description:
+          "PetLife 把宠物陪伴、玩伴匹配、临时照看和附近活动放进同一套服务逻辑里：先看资料，再发起联系，再进入预约。",
+        action: "进入服务工作区",
+        chips: ["宠物陪伴", "玩伴匹配", "临时照看 / 遛宠"],
+        flowTitle: "预约流程一眼看懂",
+        flowDescription:
+          "先联系、再确认细节、再进入预约，不把用户直接丢进冷冰冰的表单里。",
+      },
+      safety: {
+        eyebrow: "Trust & Safety",
+        title: "让用户放心，不靠一句“平台保障”，而靠每一步都看得见的信任信息。",
+        description:
+          "PetLife 会把身份、宠物信息、评价、复约记录、响应速度和安全提示直接嵌到卡片、详情页、消息页和预约流程里。",
+        action: "去看看服务卡怎么呈现",
+        badges: ["身份认证", "宠物信息完整", "历史评价可追溯", "流程安全提醒"],
+        items: [
+          {
+            title: "身份与资料认证",
+            detail: "身份状态不藏在角落，而是直接出现在资料卡、服务卡和聊天页顶部。",
+          },
+          {
+            title: "宠物信息与疫苗状态",
+            detail:
+              "宠物档案中展示疫苗、健康摘要、性格与社交友好度，帮助用户先判断适配度。",
+          },
+          {
+            title: "历史评价与复约记录",
+            detail: "评分、评价标签、复约次数会贯穿在服务详情、个人主页和预约流程里。",
+          },
+          {
+            title: "响应速度与沟通记录",
+            detail: "聊天页会展示响应速度与预约状态，帮助双方判断当前关系进度。",
+          },
+        ],
+        tipTitle: "安全提示会出现在真正需要它的地方",
+        tipDetail:
+          "比如在预约确认前提醒用户核对宠物健康信息、见面地点和应急联系人；在聊天页顶部展示当前是否已进入预约阶段，而不是等问题发生后才去解释。",
+        tipCta: "查看消息页承接方式",
+      },
+    },
+    login: {
+      title: "用邮箱和密码进入你的宠物宇宙。",
+      description:
+        "关闭 Supabase 的 Confirm email 后，注册成功即可直接进入应用，不需要再点邮箱验证链接。",
+      panelTitle: "账号登录",
+      panelDescription:
+        "使用邮箱 + 密码登录。首次使用请先注册；注册后会自动创建 PetLife 资料。",
+      email: "邮箱",
+      password: "密码",
+      passwordPlaceholder: "至少 6 位",
+      signIn: "登录",
+      waitingConfig: "等待 Supabase 配置",
+      quickSignUp: "快速注册",
+      signUp: "注册并进入",
+      setPassword: "设置密码，至少 6 位",
+      setupHint:
+        "本地先复制 .env.example 为 .env.local 并填入 Supabase 项目参数。",
+      messages: {
+        checkEmail: "登录链接已发送，请检查邮箱。",
+        missingSupabase: "请先配置 Supabase 环境变量。",
+        confirmEmail:
+          "注册已创建，但 Supabase 仍要求邮箱确认。请在 Authentication > Providers > Email 关闭 Confirm email。",
+      },
+    },
+    appHome: {
+      eyebrow: "Overview",
+      titlePrefix: "欢迎回来，",
+      description:
+        "这里不再只是功能入口，而是你今天继续使用 PetLife 的工作面：看看社区有什么新内容、哪些预约待确认、以及哪些宠物值得继续认识。",
+      action: "进入社区",
+      metrics: [
+        { label: "我的宠物资产", hint: "宠物档案与成长记录" },
+        { label: "待处理预约", hint: "需要继续确认的服务关系" },
+        { label: "新消息 / 提醒", hint: "聊天与预约状态更新" },
+      ],
+      treeTitle: "你的沉浸式互动圣诞树还在这里",
+      treeDescription:
+        "进入成长树可以继续新增记忆；进入互动圣诞树可以查看照片挂饰、播放音乐和使用按钮/手势互动。",
+      treeCta: "进入互动圣诞树",
+      treeManage: "管理成长记录",
+      todayKicker: "Today",
+      todayTitle: "把社区活跃度、服务推进和宠物资产放在同一屏，下一步就更清楚。",
+      todayCards: [
+        { title: "社区里有新互动", detail: "先看看哪些内容值得继续联系。" },
+        { title: "预约正在推进", detail: "从消息页继续确认时间地点。" },
+        { title: "宠物档案要更完整", detail: "补全性格、健康与成长信息。" },
+      ],
+      recommendKicker: "推荐继续浏览",
+      recommendTitle: "今天可以继续认识的宠物与服务",
+      petCta: "查看宠物档案",
+      continueChat: "适合继续聊天",
+      bookingKicker: "预约进度",
+      bookingTitle: "下一步该确认什么",
+      notificationKicker: "提醒中心",
+      notificationTitle: "最近更新",
+      goMessages: "去消息页",
+    },
+    match: {
+      eyebrow: "Community & Services",
+      communityTitle: "先通过内容和档案建立判断",
+      servicesTitle: "找到附近靠谱的宠物陪伴与照看",
+      communityDescription:
+        "社区负责发现和互动，服务负责把陪伴、玩伴、照看与活动关系推进到下一步。",
+      servicesDescription:
+        "先查看宠物档案、评价与服务记录，再发起联系或预约。",
+      tabs: {
+        community: "社区",
+        communityMeta: "内容流",
+        services: "服务",
+        servicesMeta: "匹配与预约",
+      },
+      postComposerKicker: "发布动态",
+      postComposerTitle:
+        "让别人先看到宠物状态，再决定要不要继续联系。",
+      relatedPet: "关联宠物",
+      noRelatedPet: "不关联宠物",
+      fallbackPetName: "备用宠物名称",
+      contentType: "内容类型",
+      city: "城市",
+      body: "正文",
+      bodyPlaceholder: "比如：想找同城玩伴、想请教经验、想记录日常...",
+      tags: "标签",
+      publishPost: "发布并进入详情",
+      categories: "高频分类",
+      categoryList: ["推荐", "找玩伴", "宠物日常", "求助问答", "经验分享"],
+      petVisible: "宠物信息可见",
+      chatSupported: "支持继续聊天",
+      liked: "已喜欢",
+      like: "喜欢",
+      openDetail: "进入详情",
+      comments: "条评论",
+      viewPet: "查看宠物档案",
+      startChat: "发起聊天",
+      emptyPostsTitle: "还没有社区动态",
+      emptyPostsDetail:
+        "先发布第一条宠物日常、找玩伴或经验分享，系统会直接把你带入详情页继续互动。",
+      worthMeeting: "值得继续认识",
+      quickFilter: "快速筛选",
+      serviceTypes: ["宠物陪伴", "玩伴匹配", "临时照看", "附近活动"],
+      serviceFlow: "服务流程",
+      serviceFlowSteps: [
+        "看档案与评价",
+        "发起联系",
+        "确认时间地点",
+        "进入预约",
+        "服务后评价",
+      ],
+      offers: "可预约服务",
+      requests: "需求广场",
+      contactFirst: "先沟通，再确认预约",
+      noServiceTitle: "暂时还没有匹配到服务",
+      noServiceDetail:
+        "你可以先浏览宠物档案，或稍后查看新的陪伴、照看与活动服务。",
+      platformSafety: "平台保障",
+      safetyItems: ["先看档案再预约", "沟通后确认时间地点", "服务后评价沉淀"],
+      continueActions: "继续操作",
+      myBookings: "查看我的预约",
+    },
+    product: {
+      verifiedVaccine: "疫苗信息完整",
+      socialFriendly: "社交友好",
+      warmButStable: "慢热但稳定",
+      publicContact: "公开可联系",
+      male: "男生",
+      female: "女生",
+      unknownSex: "未标注性别",
+      energy: "活跃度",
+      energyHigh: "高",
+      energyMedium: "中",
+      energyLow: "低",
+      reviews: "条评价",
+      repeatBookings: "次复约",
+      detail: "查看详情",
+      requestDetail: "查看需求",
+      statusOpen: "开放中",
+      statusMatched: "已匹配",
+      statusClosed: "已关闭",
+      bookingStatuses: {
+        draft: "草稿",
+        pending: "待确认",
+        confirmed: "已确认",
+        completed: "已完成",
+        cancelled: "已取消",
+      },
+      bookingDetail: "查看预约详情",
+    },
+  },
+  en: {
+    common: {
+      language: "Language",
+      chinese: "中文",
+      english: "EN",
+      petlifeTagline: "Pet social, companionship, and services",
+      login: "Log in",
+      start: "Get started",
+      viewDetails: "View details",
+      book: "Book",
+      contact: "Contact",
+      reset: "Reset",
+      all: "All",
+      publishService: "Publish service",
+      publishRequest: "Post request",
+      viewAll: "View all",
+      refresh: "Refresh",
+      save: "Save",
+      submit: "Submit",
+      cancel: "Cancel",
+      status: "Status",
+      priceMode: "Pricing",
+      rating: "Rating",
+      completed: "Done",
+      repeat: "Repeat",
+      signOut: "Sign out",
+      notSet: "Not set",
+      noPetRequest: "No pet profile required",
+      usuallyReplies: "Usually replies within 30 minutes",
+      demoMode:
+        "Demo mode is active. Connect Supabase to enable real collaboration and identity.",
+    },
+    shell: {
+      marketingNav: [
+        { href: "/community", label: "Community" },
+        { href: "/services", label: "Services" },
+        { href: "/safety", label: "Safety" },
+      ],
+      appNav: {
+        overview: "Overview",
+        community: "Community",
+        services: "Services",
+        pets: "Pets",
+        tree: "Tree",
+        messages: "Messages",
+        account: "Me",
+      },
+      notifications: "Messages & alerts",
+    },
+    landing: {
+      heroEyebrow: "A community-first pet companionship platform",
+      heroTitle:
+        "Meet the right pet companions and find trusted care in one place.",
+      heroDescription:
+        "PetLife brings pet social discovery, growth memories, companionship matching, and service workflows into one clear product experience.",
+      primaryCta: "Get started",
+      secondaryCta: "Browse community",
+      badges: ["Verified identity", "Complete pet info", "Traceable reviews"],
+      petPreview: "Pet profile preview",
+      coreFeature: "Core feature",
+      socialProfile: "Social profile",
+      energyLevel: "Energy level",
+      socialFriendly: "Social friendly",
+      high: "High",
+      petSafetyNote:
+        "Basic vaccine info is complete. Chat first to confirm meetup rhythm before booking offline interaction.",
+      featured: [
+        {
+          title: "Community feed",
+          detail:
+            "Photos, videos, Q&A, and playmate posts live in one browsable feed that feels active without becoming messy.",
+          cta: "Browse community",
+          href: "/community",
+        },
+        {
+          title: "Companionship matching",
+          detail:
+            "From nearby playmates to pet sitting, clear steps connect discovery, chat, and booking.",
+          cta: "Find playmates",
+          href: "/services",
+        },
+        {
+          title: "Growth records",
+          detail:
+            "Pet profiles, stories, photos, and videos become long-term memories you can revisit.",
+          cta: "Create a profile",
+          href: "/app/tree",
+        },
+      ],
+      communityKicker: "Community picks",
+      communityTitle:
+        "See real pet moments first, then decide whether to continue the conversation.",
+      communityDescription:
+        "The feed is organized around playmates, daily life, questions, and experience sharing, with pet profiles and trust cues close to every post.",
+      communityCta: "See more",
+      petProfileCta: "View pet profile",
+      petDailyCta: "See daily moments",
+      flowKicker: "Service flow",
+      flowTitle:
+        "Make services easy to understand through steps, not dense instructions.",
+      flowSteps: [
+        "Browse community or services",
+        "Check pet / owner profiles",
+        "Start chat",
+        "Confirm time, place, and safety info",
+        "Review after service",
+      ],
+      trustKicker: "Trust & safety",
+      trustTitle:
+        "Reliability should be visible, not hidden behind a slogan.",
+      trustDescription:
+        "Identity, pet info, reviews, repeat bookings, response speed, and process tips appear directly in cards, detail pages, and booking flows.",
+      trustBullets: [
+        "Identity and pet info are visible on cards and details",
+        "Service flows show safety tips, history, and next actions",
+        "Chats include pet summaries and booking status",
+      ],
+      trustCta: "Learn about safety",
+      finalKicker: "Get started",
+      finalTitle:
+        "Whether you own a pet or are looking for companionship, start from a clear next step.",
+      finalDescription:
+        "Build a pet profile or explore nearby community and matching signals. PetLife connects content, trust, and service workflows.",
+      ownerCta: "I own a pet",
+      serviceCta: "I need playmates / services",
+      messagesCta: "See how messages work",
+    },
+    publicPages: {
+      community: {
+        eyebrow: "Community",
+        title:
+          "Daily moments, playmate discovery, and shared experience happen in one feed.",
+        description:
+          "PetLife is not a generic forum. It organizes content around pet relationships and companionship, with pet profiles and trust signals close to each post.",
+        action: "Enter community workspace",
+        tabs: ["Recommended", "Playmates", "Daily life", "Q&A", "Experience"],
+        completeContent: "Open full feed",
+        findPlaymate: "Find a playmate",
+      },
+      services: {
+        eyebrow: "Services",
+        title:
+          "Service discovery should be clear before users even open a detail page.",
+        description:
+          "PetLife connects companionship, matching, temporary care, and nearby activities through one flow: check profiles, contact, then book.",
+        action: "Enter service workspace",
+        chips: ["Pet companionship", "Playmate matching", "Temporary care / walks"],
+        flowTitle: "A booking flow you can understand at a glance",
+        flowDescription:
+          "Contact first, confirm details, then book. Users are not dropped into a cold form.",
+      },
+      safety: {
+        eyebrow: "Trust & Safety",
+        title:
+          "Trust is built through visible signals at every step, not a single platform promise.",
+        description:
+          "PetLife places identity, pet info, reviews, repeat bookings, response speed, and safety tips in cards, details, messages, and booking flows.",
+        action: "See service cards",
+        badges: ["Identity verified", "Complete pet info", "Traceable reviews", "Safety reminders"],
+        items: [
+          {
+            title: "Identity and profile verification",
+            detail:
+              "Verification status appears on profiles, service cards, and chat headers.",
+          },
+          {
+            title: "Pet info and vaccine status",
+            detail:
+              "Pet profiles show vaccine info, health summaries, personality, and social friendliness.",
+          },
+          {
+            title: "Reviews and repeat bookings",
+            detail:
+              "Ratings, review tags, and repeat bookings appear across service details and profiles.",
+          },
+          {
+            title: "Response speed and chat history",
+            detail:
+              "Chats show response speed and booking status so both sides understand progress.",
+          },
+        ],
+        tipTitle: "Safety tips appear where they matter",
+        tipDetail:
+          "Before booking, users are prompted to confirm pet health, meetup location, and emergency contacts. Chat headers show whether the relationship has entered booking.",
+        tipCta: "View message flow",
+      },
+    },
+    login: {
+      title: "Enter your pet universe with email and password.",
+      description:
+        "After disabling Supabase Confirm email, registration can enter the app directly without an email verification link.",
+      panelTitle: "Account login",
+      panelDescription:
+        "Use email and password. New users should register first; PetLife will create a profile automatically.",
+      email: "Email",
+      password: "Password",
+      passwordPlaceholder: "At least 6 characters",
+      signIn: "Log in",
+      waitingConfig: "Waiting for Supabase config",
+      quickSignUp: "Quick sign up",
+      signUp: "Sign up and enter",
+      setPassword: "Set password, at least 6 characters",
+      setupHint:
+        "Copy .env.example to .env.local locally and fill in your Supabase project values.",
+      messages: {
+        checkEmail: "Login link sent. Please check your email.",
+        missingSupabase: "Please configure Supabase environment variables first.",
+        confirmEmail:
+          "Account created, but Supabase still requires email confirmation. Disable Confirm email in Authentication > Providers > Email.",
+      },
+    },
+    appHome: {
+      eyebrow: "Overview",
+      titlePrefix: "Welcome back, ",
+      description:
+        "This is your PetLife workspace for today: new community content, bookings to confirm, and pets worth meeting.",
+      action: "Enter community",
+      metrics: [
+        { label: "My pet assets", hint: "Profiles and growth records" },
+        { label: "Pending bookings", hint: "Service relationships to confirm" },
+        { label: "New messages / alerts", hint: "Chat and booking updates" },
+      ],
+      treeTitle: "Your immersive interactive Christmas tree is still here",
+      treeDescription:
+        "Add memories in the growth tree, or enter the interactive tree to view photo ornaments, play music, and use buttons or gestures.",
+      treeCta: "Enter interactive tree",
+      treeManage: "Manage memories",
+      todayKicker: "Today",
+      todayTitle:
+        "Community activity, service progress, and pet assets live together so the next step is clear.",
+      todayCards: [
+        { title: "New community interactions", detail: "See what is worth continuing." },
+        { title: "Bookings are moving", detail: "Confirm time and place from messages." },
+        { title: "Profiles can be stronger", detail: "Complete personality, health, and memory info." },
+      ],
+      recommendKicker: "Recommended",
+      recommendTitle: "Pets and services to continue exploring today",
+      petCta: "View pet profile",
+      continueChat: "Good to keep chatting",
+      bookingKicker: "Booking progress",
+      bookingTitle: "What needs confirming next",
+      notificationKicker: "Notification center",
+      notificationTitle: "Recent updates",
+      goMessages: "Go to messages",
+    },
+    match: {
+      eyebrow: "Community & Services",
+      communityTitle: "Build judgment through content and profiles first",
+      servicesTitle: "Find trusted nearby pet companionship and care",
+      communityDescription:
+        "Community drives discovery and interaction; services move companionship, playmates, care, and activities to the next step.",
+      servicesDescription:
+        "Check pet profiles, reviews, and service history before starting contact or booking.",
+      tabs: {
+        community: "Community",
+        communityMeta: "Feed",
+        services: "Services",
+        servicesMeta: "Match & book",
+      },
+      postComposerKicker: "Create post",
+      postComposerTitle:
+        "Show pet status first, then let others decide whether to continue.",
+      relatedPet: "Related pet",
+      noRelatedPet: "No related pet",
+      fallbackPetName: "Fallback pet name",
+      contentType: "Content type",
+      city: "City",
+      body: "Body",
+      bodyPlaceholder: "For example: looking for local playmates, asking for advice, or sharing daily life...",
+      tags: "Tags",
+      publishPost: "Publish and open detail",
+      categories: "Popular categories",
+      categoryList: ["Recommended", "Playmates", "Daily life", "Q&A", "Experience"],
+      petVisible: "Pet info visible",
+      chatSupported: "Chat supported",
+      liked: "Liked",
+      like: "Like",
+      openDetail: "Open detail",
+      comments: "comments",
+      viewPet: "View pet profile",
+      startChat: "Start chat",
+      emptyPostsTitle: "No community posts yet",
+      emptyPostsDetail:
+        "Publish the first pet daily update, playmate post, or experience share. The app will take you into the detail page.",
+      worthMeeting: "Worth meeting",
+      quickFilter: "Quick filters",
+      serviceTypes: ["Pet companionship", "Playmate matching", "Temporary care", "Nearby activities"],
+      serviceFlow: "Service flow",
+      serviceFlowSteps: [
+        "Check profiles and reviews",
+        "Start contact",
+        "Confirm time and place",
+        "Enter booking",
+        "Review after service",
+      ],
+      offers: "Bookable services",
+      requests: "Request board",
+      contactFirst: "Chat first, then confirm booking",
+      noServiceTitle: "No matching services yet",
+      noServiceDetail:
+        "Browse pet profiles first, or check back later for new companionship, care, and activity services.",
+      platformSafety: "Platform safety",
+      safetyItems: ["Check profiles before booking", "Confirm time and place in chat", "Reviews build trust after service"],
+      continueActions: "Continue",
+      myBookings: "View my bookings",
+    },
+    product: {
+      verifiedVaccine: "Vaccine info complete",
+      socialFriendly: "Social friendly",
+      warmButStable: "Slow to warm, stable",
+      publicContact: "Public contact",
+      male: "Male",
+      female: "Female",
+      unknownSex: "Sex not set",
+      energy: "Energy",
+      energyHigh: "High",
+      energyMedium: "Medium",
+      energyLow: "Low",
+      reviews: "reviews",
+      repeatBookings: "repeat bookings",
+      detail: "View details",
+      requestDetail: "View request",
+      statusOpen: "Open",
+      statusMatched: "Matched",
+      statusClosed: "Closed",
+      bookingStatuses: {
+        draft: "Draft",
+        pending: "Pending",
+        confirmed: "Confirmed",
+        completed: "Completed",
+        cancelled: "Cancelled",
+      },
+      bookingDetail: "View booking details",
+    },
+  },
+} as const;
+
+export type Dictionary = (typeof dictionary)[Locale];
+
+export function getDictionary(locale: Locale = "zh") {
+  return dictionary[locale];
+}

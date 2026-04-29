@@ -16,26 +16,22 @@ import { usePathname, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { signOut } from "@/app/actions";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { getDictionary, type Locale } from "@/lib/i18n";
 import type { Profile } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const desktopNavItems = [
-  { href: "/app", label: "概览", icon: Grid2x2, key: "overview" },
-  { href: "/app/match?tab=community", label: "社区", icon: UsersRound, key: "community" },
-  { href: "/app/match?tab=services", label: "服务", icon: Compass, key: "services" },
-  { href: "/app/profile?tab=pets", label: "宠物", icon: PawPrint, key: "pets" },
-  { href: "/app/tree", label: "成长树", icon: TreePine, key: "tree" },
-  { href: "/app/chats", label: "消息", icon: MessageCircleMore, key: "messages" },
-  { href: "/app/profile?tab=account", label: "我的", icon: UserRound, key: "account" },
-];
+const navConfig = [
+  { href: "/app", icon: Grid2x2, key: "overview" },
+  { href: "/app/match?tab=community", icon: UsersRound, key: "community" },
+  { href: "/app/match?tab=services", icon: Compass, key: "services" },
+  { href: "/app/profile?tab=pets", icon: PawPrint, key: "pets" },
+  { href: "/app/tree", icon: TreePine, key: "tree" },
+  { href: "/app/chats", icon: MessageCircleMore, key: "messages" },
+  { href: "/app/profile?tab=account", icon: UserRound, key: "account" },
+] as const;
 
-const mobileNavItems = [
-  { href: "/app", label: "概览", icon: Grid2x2, key: "overview" },
-  { href: "/app/match?tab=community", label: "社区", icon: UsersRound, key: "community" },
-  { href: "/app/match?tab=services", label: "服务", icon: Compass, key: "services" },
-  { href: "/app/tree", label: "成长树", icon: TreePine, key: "tree" },
-  { href: "/app/chats", label: "消息", icon: MessageCircleMore, key: "messages" },
-];
+const mobileNavKeys = new Set(["overview", "community", "services", "tree", "messages"]);
 
 function resolveActiveKey(pathname: string, searchParams: { get(name: string): string | null }) {
   if (pathname === "/app") {
@@ -68,15 +64,24 @@ function resolveActiveKey(pathname: string, searchParams: { get(name: string): s
 export function AppShell({
   children,
   profile,
+  locale,
   isDemo = false,
 }: {
   children: ReactNode;
   profile: Profile;
+  locale: Locale;
   isDemo?: boolean;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const activeKey = resolveActiveKey(pathname, searchParams);
+  const copy = getDictionary(locale);
+  const navLabels = copy.shell.appNav;
+  const desktopNavItems = navConfig.map((item) => ({
+    ...item,
+    label: navLabels[item.key],
+  }));
+  const mobileNavItems = desktopNavItems.filter((item) => mobileNavKeys.has(item.key));
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(240,111,79,0.08),transparent_26rem),radial-gradient(circle_at_100%_0%,rgba(155,184,154,0.12),transparent_28rem),linear-gradient(180deg,#fffaf4_0%,#fff9f2_46%,#f7f1e8_100%)]">
@@ -87,7 +92,7 @@ export function AppShell({
           </span>
           <div>
             <p className="text-lg font-semibold tracking-tight">PetLife</p>
-            <p className="text-xs text-white/48">宠物社交、陪伴与服务</p>
+            <p className="text-xs text-white/48">{copy.common.petlifeTagline}</p>
           </div>
         </Link>
 
@@ -126,20 +131,24 @@ export function AppShell({
           <div className="mt-4 grid grid-cols-3 gap-2 text-center">
             <div className="rounded-2xl bg-white/10 px-2 py-3">
               <p className="text-base font-semibold">{profile.rating_avg?.toFixed(1) ?? "4.8"}</p>
-              <p className="mt-1 text-[11px] text-white/52">评分</p>
+              <p className="mt-1 text-[11px] text-white/52">{copy.common.rating}</p>
             </div>
             <div className="rounded-2xl bg-white/10 px-2 py-3">
               <p className="text-base font-semibold">{profile.completed_booking_count ?? 8}</p>
-              <p className="mt-1 text-[11px] text-white/52">完成</p>
+              <p className="mt-1 text-[11px] text-white/52">{copy.common.completed}</p>
             </div>
             <div className="rounded-2xl bg-white/10 px-2 py-3">
               <p className="text-base font-semibold">{profile.repeat_booking_count ?? 3}</p>
-              <p className="mt-1 text-[11px] text-white/52">复约</p>
+              <p className="mt-1 text-[11px] text-white/52">{copy.common.repeat}</p>
             </div>
           </div>
           <p className="mt-4 text-xs leading-5 text-white/48">
-            {isDemo ? "当前为演示模式，接入 Supabase 后可启用真实协作与身份体系。" : profile.response_time_label ?? "通常 30 分钟内回复"}
+            {isDemo ? copy.common.demoMode : profile.response_time_label ?? copy.common.usuallyReplies}
           </p>
+        </div>
+
+        <div className="mt-4">
+          <LanguageSwitcher locale={locale} inverted />
         </div>
 
         <div className="mt-auto space-y-3">
@@ -149,14 +158,14 @@ export function AppShell({
           >
             <span className="flex items-center gap-3">
               <BellDot className="size-4" />
-              消息与提醒
+              {copy.shell.notifications}
             </span>
             <span className="rounded-full bg-[#f06f4f] px-2 py-0.5 text-[11px] font-semibold text-white">1</span>
           </Link>
           {!isDemo ? (
             <form action={signOut}>
               <button className="w-full rounded-[1.2rem] border border-white/10 px-4 py-3 text-left text-sm font-semibold text-[#ffd1c5] hover:bg-white/8" type="submit">
-                退出登录
+                {copy.common.signOut}
               </button>
             </form>
           ) : null}
@@ -174,12 +183,15 @@ export function AppShell({
               <p className="text-[11px] text-black/44">{profile.city}</p>
             </div>
           </Link>
-          <Link
-            href="/app/profile?tab=account"
-            className="rounded-full border border-black/10 bg-white/80 px-3 py-2 text-sm font-medium text-black/64"
-          >
-            {profile.display_name}
-          </Link>
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher locale={locale} compact />
+            <Link
+              href="/app/profile?tab=account"
+              className="rounded-full border border-black/10 bg-white/80 px-3 py-2 text-sm font-medium text-black/64"
+            >
+              {profile.display_name}
+            </Link>
+          </div>
         </div>
       </header>
 

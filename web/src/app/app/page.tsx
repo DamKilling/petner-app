@@ -12,8 +12,12 @@ import {
   getReviewSummary,
   getServiceOffers,
 } from "@/lib/data";
+import { getDictionary } from "@/lib/i18n";
+import { getRequestLocale } from "@/lib/i18n-server";
 
 export default async function AppHomePage() {
+  const locale = await getRequestLocale();
+  const copy = getDictionary(locale).appHome;
   const user = await getCurrentUser();
   const profile = user?.profile ?? demoProfile;
   const [data, discoverPets, offers, reviewSummary, bookings, notifications] = await Promise.all([
@@ -28,17 +32,17 @@ export default async function AppHomePage() {
   return (
     <div className="grid gap-8">
       <PageHeader
-        eyebrow="Overview"
-        title={`欢迎回来，${profile.display_name}`}
-        description="这里不再只是功能入口，而是你今天继续使用 PetLife 的工作面：看看社区有什么新内容、哪些预约待确认、以及哪些宠物值得继续认识。"
-        action={<ButtonLink href="/app/match?tab=community">进入社区</ButtonLink>}
+        eyebrow={copy.eyebrow}
+        title={`${copy.titlePrefix}${profile.display_name}`}
+        description={copy.description}
+        action={<ButtonLink href="/app/match?tab=community">{copy.action}</ButtonLink>}
       />
 
       <MetricStrip
         items={[
-          { label: "我的宠物资产", value: data.petCount, hint: "宠物档案与成长记录" },
-          { label: "待处理预约", value: data.pendingBookingCount, hint: "需要继续确认的服务关系" },
-          { label: "新消息 / 提醒", value: data.unreadNotificationCount, hint: "聊天与预约状态更新" },
+          { label: copy.metrics[0].label, value: data.petCount, hint: copy.metrics[0].hint },
+          { label: copy.metrics[1].label, value: data.pendingBookingCount, hint: copy.metrics[1].hint },
+          { label: copy.metrics[2].label, value: data.unreadNotificationCount, hint: copy.metrics[2].hint },
         ]}
       />
 
@@ -49,29 +53,25 @@ export default async function AppHomePage() {
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#b14e31]">Interactive Tree</p>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight">你的沉浸式互动圣诞树还在这里</h2>
-            <p className="mt-2 text-sm leading-6 text-black/58">
-              进入成长树可以继续新增记忆；进入互动圣诞树可以查看照片挂饰、播放音乐和使用按钮/手势互动。
-            </p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight">{copy.treeTitle}</h2>
+            <p className="mt-2 text-sm leading-6 text-black/58">{copy.treeDescription}</p>
           </div>
           <div className="flex flex-wrap gap-2 md:justify-end">
-            <ButtonLink href="/app/tree/interactive">进入互动圣诞树</ButtonLink>
-            <ButtonLink href="/app/tree" variant="secondary">管理成长记录</ButtonLink>
+            <ButtonLink href="/app/tree/interactive">{copy.treeCta}</ButtonLink>
+            <ButtonLink href="/app/tree" variant="secondary">
+              {copy.treeManage}
+            </ButtonLink>
           </div>
         </div>
       </Panel>
 
       <section className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
         <Panel className="overflow-hidden bg-[#1f1916] text-white">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#f6c07b]">Today</p>
-          <h2 className="mt-4 max-w-2xl text-3xl font-semibold tracking-tight">把社区活跃度、服务推进和宠物资产放在同一屏，下一步就更清楚。</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#f6c07b]">{copy.todayKicker}</p>
+          <h2 className="mt-4 max-w-2xl text-3xl font-semibold tracking-tight">{copy.todayTitle}</h2>
           <div className="mt-6 grid gap-3 md:grid-cols-3">
-            {[
-              { icon: UsersRound, title: "社区里有新互动", detail: "先看看哪些内容值得继续联系。" },
-              { icon: CalendarClock, title: "预约正在推进", detail: "从消息页继续确认时间地点。" },
-              { icon: PawPrint, title: "宠物档案要更完整", detail: "补全性格、健康与成长信息。" },
-            ].map((item) => {
-              const Icon = item.icon;
+            {copy.todayCards.map((item, index) => {
+              const Icon = [UsersRound, CalendarClock, PawPrint][index] ?? Sparkles;
               return (
                 <div key={item.title} className="rounded-[1.4rem] border border-white/10 bg-white/8 p-4">
                   <Icon className="size-5 text-[#f6c07b]" />
@@ -82,34 +82,35 @@ export default async function AppHomePage() {
             })}
           </div>
         </Panel>
-        <ReviewHighlight summary={reviewSummary} />
+        <ReviewHighlight locale={locale} summary={reviewSummary} />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
         <div className="grid gap-4">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#b14e31]">推荐继续浏览</p>
-              <h2 className="mt-2 text-2xl font-semibold">今天可以继续认识的宠物与服务</h2>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#b14e31]">{copy.recommendKicker}</p>
+              <h2 className="mt-2 text-2xl font-semibold">{copy.recommendTitle}</h2>
             </div>
             <ButtonLink href="/app/match?tab=services" variant="secondary">
-              查看全部
+              {getDictionary(locale).common.viewAll}
             </ButtonLink>
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
             {discoverPets.slice(0, 2).map((pet) => (
               <PetCard
                 key={pet.id}
+                locale={locale}
                 pet={pet}
                 href={`/app/match/pets/${pet.id}`}
-                ctaLabel="查看宠物档案"
-                actionSlot={<span className="text-xs text-black/42">适合继续聊天</span>}
+                ctaLabel={copy.petCta}
+                actionSlot={<span className="text-xs text-black/42">{copy.continueChat}</span>}
               />
             ))}
           </div>
           <div className="grid gap-4">
             {offers.slice(0, 1).map((offer) => (
-              <ServiceCard key={offer.id} offer={offer} href="/app/match?tab=services" />
+              <ServiceCard key={offer.id} locale={locale} offer={offer} href="/app/match?tab=services" />
             ))}
           </div>
         </div>
@@ -118,24 +119,24 @@ export default async function AppHomePage() {
           <Panel>
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#b14e31]">预约进度</p>
-                <h2 className="mt-2 text-2xl font-semibold">下一步该确认什么</h2>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#b14e31]">{copy.bookingKicker}</p>
+                <h2 className="mt-2 text-2xl font-semibold">{copy.bookingTitle}</h2>
               </div>
               <Sparkles className="size-5 text-[#b14e31]" />
             </div>
             <div className="mt-5">
-              <BookingTimeline items={bookings} />
+              <BookingTimeline locale={locale} items={bookings} />
             </div>
           </Panel>
 
           <Panel>
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#b14e31]">提醒中心</p>
-                <h2 className="mt-2 text-2xl font-semibold">最近更新</h2>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#b14e31]">{copy.notificationKicker}</p>
+                <h2 className="mt-2 text-2xl font-semibold">{copy.notificationTitle}</h2>
               </div>
               <ButtonLink href="/app/chats" variant="ghost" className="px-0">
-                去消息页
+                {copy.goMessages}
                 <ArrowRight className="ml-2 size-4" />
               </ButtonLink>
             </div>

@@ -2,6 +2,7 @@ import { CalendarClock, CheckCircle2, Clock3, MapPin, MessageCircle, ShieldCheck
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { getDictionary, type Locale } from "@/lib/i18n";
 import { accentSoftClasses, trustToneClasses } from "@/lib/theme";
 import type { AppNotification, Booking, Pet, ReviewSummary, ServiceOffer, ServiceRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -85,21 +86,22 @@ function petPersona(pet: Pet) {
   return pet.personality_tags?.length ? pet.personality_tags : pet.interests.slice(0, 3);
 }
 
-function petTrustBadges(pet: Pet) {
+function petTrustBadges(pet: Pet, locale: Locale) {
+  const copy = getDictionary(locale).product;
   const badges: Array<{ label: string; tone: Tone }> = [];
 
   if (pet.vaccinated || pet.vaccine_status === "complete") {
-    badges.push({ label: "疫苗信息完整", tone: "verified" });
+    badges.push({ label: copy.verifiedVaccine, tone: "verified" });
   }
 
   if ((pet.social_level ?? "warm") === "outgoing") {
-    badges.push({ label: "社交友好", tone: "trust" });
+    badges.push({ label: copy.socialFriendly, tone: "trust" });
   } else if ((pet.social_level ?? "warm") === "warm") {
-    badges.push({ label: "慢热但稳定", tone: "warm" });
+    badges.push({ label: copy.warmButStable, tone: "warm" });
   }
 
   if (pet.visibility === "public") {
-    badges.push({ label: "公开可联系", tone: "neutral" });
+    badges.push({ label: copy.publicContact, tone: "neutral" });
   }
 
   return badges.slice(0, 3);
@@ -108,16 +110,19 @@ function petTrustBadges(pet: Pet) {
 export function PetCard({
   pet,
   href,
-  ctaLabel = "查看档案",
+  ctaLabel,
   actionSlot,
   compact = false,
+  locale = "zh",
 }: {
   pet: Pet;
   href: string;
   ctaLabel?: string;
   actionSlot?: ReactNode;
   compact?: boolean;
+  locale?: Locale;
 }) {
+  const copy = getDictionary(locale).product;
   const persona = petPersona(pet);
 
   return (
@@ -132,9 +137,7 @@ export function PetCard({
             )}
             style={pet.avatar_url ? { backgroundImage: `url(${pet.avatar_url})`, backgroundPosition: "center", backgroundSize: "cover" } : undefined}
           >
-            {pet.avatar_url ? null : (
-              <span>{pet.species === "猫咪" ? "🐱" : "🐶"}</span>
-            )}
+            {pet.avatar_url ? null : <span>{pet.species.includes("cat") || pet.species.includes("猫") ? "🐱" : "🐶"}</span>}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -144,10 +147,10 @@ export function PetCard({
               </span>
             </div>
             <p className="mt-1 text-sm text-black/52">
-              {pet.city} · {pet.age_text} · {pet.sex === "female" ? "女生" : pet.sex === "male" ? "男生" : "未标注性别"}
+              {pet.city} · {pet.age_text} · {pet.sex === "female" ? copy.female : pet.sex === "male" ? copy.male : copy.unknownSex}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
-              {petTrustBadges(pet).map((badge) => (
+              {petTrustBadges(pet, locale).map((badge) => (
                 <TrustBadge key={badge.label} label={badge.label} tone={badge.tone} />
               ))}
             </div>
@@ -164,14 +167,14 @@ export function PetCard({
           ))}
           {pet.energy_level ? (
             <span className="rounded-full bg-[#9bb89a]/14 px-3 py-1 text-xs text-[#4e6950]">
-              活跃度 {pet.energy_level === "high" ? "高" : pet.energy_level === "medium" ? "中" : "低"}
+              {copy.energy}: {pet.energy_level === "high" ? copy.energyHigh : pet.energy_level === "medium" ? copy.energyMedium : copy.energyLow}
             </span>
           ) : null}
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-black/8 pt-4">
           <Link href={href} className="text-sm font-semibold text-[#b74c30] hover:text-[#9b3f27]">
-            {ctaLabel}
+            {ctaLabel ?? copy.detail}
           </Link>
           {actionSlot}
         </div>
@@ -183,10 +186,14 @@ export function PetCard({
 export function ServiceCard({
   offer,
   href,
+  locale = "zh",
 }: {
   offer: ServiceOffer;
   href?: string;
+  locale?: Locale;
 }) {
+  const dict = getDictionary(locale);
+
   return (
     <article className="overflow-hidden rounded-[1.8rem] border border-black/10 bg-white/82 shadow-[0_18px_50px_rgba(47,35,22,0.06)]">
       <div className="grid gap-4 p-5 md:p-6">
@@ -204,14 +211,14 @@ export function ServiceCard({
             <p className="mt-2 text-sm text-black/52">{offer.intro}</p>
           </div>
           <div className="rounded-[1.2rem] border border-black/8 bg-[#fff7ef] px-4 py-3 text-right">
-            <p className="text-xs text-black/45">方式</p>
+            <p className="text-xs text-black/45">{dict.common.priceMode}</p>
             <p className="mt-1 text-sm font-semibold">{offer.price_mode}</p>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
           {offer.trust_badges.map((item) => (
-            <TrustBadge key={item} label={item} tone={item.includes("实名") ? "verified" : item.includes("复购") ? "trust" : "warm"} />
+            <TrustBadge key={item} label={item} tone={item.includes("实名") || item.toLowerCase().includes("verified") ? "verified" : item.includes("复") || item.toLowerCase().includes("repeat") ? "trust" : "warm"} />
           ))}
         </div>
 
@@ -236,15 +243,19 @@ export function ServiceCard({
               <Star className="size-4 fill-current text-[#e7a94c]" />
               {offer.rating_avg.toFixed(1)}
             </span>
-            <span>{offer.rating_count} 条评价</span>
-            <span>{offer.repeat_booking_count} 次复约</span>
+            <span>
+              {offer.rating_count} {dict.product.reviews}
+            </span>
+            <span>
+              {offer.repeat_booking_count} {dict.product.repeatBookings}
+            </span>
           </div>
           {href ? (
             <Link href={href} className="text-sm font-semibold text-[#b74c30] hover:text-[#9b3f27]">
-              发起联系
+              {dict.product.detail}
             </Link>
           ) : (
-            <button className="text-sm font-semibold text-[#b74c30]">发起联系</button>
+            <button className="text-sm font-semibold text-[#b74c30]">{dict.common.contact}</button>
           )}
         </div>
       </div>
@@ -255,10 +266,20 @@ export function ServiceCard({
 export function ServiceRequestCard({
   request,
   href,
+  locale = "zh",
 }: {
   request: ServiceRequest;
   href: string;
+  locale?: Locale;
 }) {
+  const dict = getDictionary(locale);
+  const statusLabel =
+    request.status === "open"
+      ? dict.product.statusOpen
+      : request.status === "matched"
+        ? dict.product.statusMatched
+        : dict.product.statusClosed;
+
   return (
     <article className="overflow-hidden rounded-[1.8rem] border border-black/10 bg-white/82 shadow-[0_18px_50px_rgba(47,35,22,0.06)]">
       <div className="grid gap-4 p-5 md:p-6">
@@ -271,8 +292,8 @@ export function ServiceRequestCard({
             <p className="mt-2 text-sm leading-6 text-black/58">{request.detail}</p>
           </div>
           <div className="rounded-[1.2rem] border border-black/8 bg-[#f5faf3] px-4 py-3 text-right">
-            <p className="text-xs text-black/45">状态</p>
-            <p className="mt-1 text-sm font-semibold">{request.status === "open" ? "开放中" : request.status === "matched" ? "已匹配" : "已关闭"}</p>
+            <p className="text-xs text-black/45">{dict.common.status}</p>
+            <p className="mt-1 text-sm font-semibold">{statusLabel}</p>
           </div>
         </div>
 
@@ -287,14 +308,14 @@ export function ServiceRequestCard({
           </div>
           <div className="flex items-center gap-2">
             <UsersRound className="size-4 text-black/42" />
-            {request.related_pet_name ?? "无宠物档案需求"}
+            {request.related_pet_name ?? dict.common.noPetRequest}
           </div>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-black/8 pt-4">
           <p className="text-sm text-black/58">{request.budget_summary}</p>
           <Link href={href} className="text-sm font-semibold text-[#b74c30] hover:text-[#9b3f27]">
-            查看需求
+            {dict.product.requestDetail}
           </Link>
         </div>
       </div>
@@ -302,7 +323,9 @@ export function ServiceRequestCard({
   );
 }
 
-export function ReviewHighlight({ summary }: { summary: ReviewSummary }) {
+export function ReviewHighlight({ summary, locale = "zh" }: { summary: ReviewSummary; locale?: Locale }) {
+  const copy = getDictionary(locale).product;
+
   return (
     <div className="rounded-[1.75rem] border border-black/10 bg-white/82 p-5 shadow-[0_18px_50px_rgba(47,35,22,0.05)]">
       <div className="flex items-center gap-3">
@@ -311,7 +334,9 @@ export function ReviewHighlight({ summary }: { summary: ReviewSummary }) {
         </div>
         <div>
           <p className="text-lg font-semibold">{summary.rating_avg.toFixed(1)} / 5</p>
-          <p className="text-sm text-black/52">{summary.rating_count} 条评价 · {summary.repeat_booking_count} 次复约</p>
+          <p className="text-sm text-black/52">
+            {summary.rating_count} {copy.reviews} · {summary.repeat_booking_count} {copy.repeatBookings}
+          </p>
         </div>
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
@@ -326,7 +351,9 @@ export function ReviewHighlight({ summary }: { summary: ReviewSummary }) {
   );
 }
 
-export function BookingTimeline({ items }: { items: Booking[] }) {
+export function BookingTimeline({ items, locale = "zh" }: { items: Booking[]; locale?: Locale }) {
+  const dict = getDictionary(locale);
+
   return (
     <div className="grid gap-3">
       {items.map((item) => (
@@ -338,21 +365,13 @@ export function BookingTimeline({ items }: { items: Booking[] }) {
               <p className="mt-1 text-sm text-black/54">{item.scheduled_time}</p>
             </div>
             <span className="rounded-full bg-black/[0.04] px-3 py-1 text-xs font-semibold text-black/60">
-              {item.status === "pending"
-                ? "待确认"
-                : item.status === "confirmed"
-                  ? "已确认"
-                  : item.status === "completed"
-                    ? "已完成"
-                    : item.status === "cancelled"
-                      ? "已取消"
-                      : "草稿"}
+              {dict.product.bookingStatuses[item.status]}
             </span>
           </div>
           <p className="mt-3 text-sm text-black/62">{item.price_summary}</p>
           <p className="mt-2 text-xs text-black/45">{item.safety_notice}</p>
           <Link href={`/app/match/bookings/${item.id}`} className="mt-3 inline-flex text-sm font-semibold text-[#b74c30]">
-            查看预约详情
+            {dict.product.bookingDetail}
           </Link>
         </div>
       ))}

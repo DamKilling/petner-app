@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+
+import { getRequestLocale } from "@/lib/i18n-server";
+
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,17 +17,19 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "PetLife",
-  description: "宠物社交、宠物陪伴与服务整合平台",
+  description: "Pet social, companionship, and services platform.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getRequestLocale();
+
   return (
     <html
-      lang="zh-CN"
+      lang={locale === "en" ? "en" : "zh-CN"}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">{children}</body>
