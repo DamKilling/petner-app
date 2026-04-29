@@ -170,7 +170,7 @@ export default async function MatchPage({
           </div>
         </div>
       ) : (
-        <div className="grid gap-5 xl:grid-cols-[17rem_minmax(0,1fr)_20rem]">
+        <div className="grid gap-5 xl:grid-cols-[17rem_minmax(0,1fr)] 2xl:grid-cols-[17rem_minmax(34rem,1fr)_20rem]">
           <aside className="grid gap-4 xl:sticky xl:top-8 xl:self-start">
             <Panel className="rounded-[1.5rem] bg-white/88 p-4 shadow-[0_16px_48px_rgba(47,35,22,0.07)] md:p-5">
               <div className="flex items-center justify-between gap-3">
@@ -224,7 +224,7 @@ export default async function MatchPage({
           </aside>
 
           <section className="grid content-start gap-4">
-            <div className="flex flex-col gap-3 rounded-[1.6rem] border border-black/8 bg-white/78 p-3 shadow-[0_16px_52px_rgba(47,35,22,0.06)] sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 rounded-[1.6rem] border border-black/8 bg-white/78 p-3 shadow-[0_16px_52px_rgba(47,35,22,0.06)] 2xl:flex-row 2xl:items-center 2xl:justify-between">
               <SectionTabs
                 active={`/app/match?tab=services&surface=${serviceSurface}`}
                 tabs={[
@@ -244,23 +244,23 @@ export default async function MatchPage({
                   key={offer.id}
                   className="group overflow-hidden rounded-[1.6rem] border border-black/8 bg-white/90 p-5 shadow-[0_18px_54px_rgba(47,35,22,0.08)] transition hover:-translate-y-0.5 hover:border-[#e96a4b]/28 hover:shadow-[0_24px_72px_rgba(47,35,22,0.12)]"
                 >
-                  <div className="grid gap-5 md:grid-cols-[auto_1fr_auto]">
+                  <div className="grid gap-5 md:grid-cols-[auto_minmax(0,1fr)] 2xl:grid-cols-[auto_minmax(0,1fr)_auto]">
                     <div className="flex size-16 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#fff0df,#e6f1e7)] text-[#c45d42]">
                       <PawPrint className="size-7" />
                     </div>
                     <div className="min-w-0">
                       <div className="flex flex-wrap gap-2">
                         {offer.service_types.map((item) => (
-                          <span key={item} className="rounded-full bg-[#fff0e8] px-3 py-1 text-xs font-semibold text-[#a94831]">
+                          <span key={item} className="rounded-full bg-[#fff0e8] px-3 py-1 text-xs font-semibold leading-relaxed text-[#a94831]">
                             {item}
                           </span>
                         ))}
                       </div>
-                      <h2 className="mt-3 text-xl font-semibold tracking-tight text-[#2f241e]">{offer.title ?? offer.provider_name}</h2>
-                      <p className="mt-1 text-sm text-black/50">
+                      <h2 className="mt-3 break-words text-xl font-semibold leading-snug tracking-tight text-[#2f241e]">{offer.title ?? offer.provider_name}</h2>
+                      <p className="mt-1 break-words text-sm leading-6 text-black/50">
                         {offer.provider_name} · {offer.related_pet_name ?? dict.common.noPetRequest}
                       </p>
-                      <p className="mt-3 line-clamp-2 text-sm leading-6 text-black/62">{offer.intro}</p>
+                      <p className="mt-3 line-clamp-2 break-words text-sm leading-6 text-black/62">{offer.intro}</p>
                       <div className="mt-4 grid gap-2 text-sm text-black/58 sm:grid-cols-3">
                         <span className="inline-flex items-center gap-1.5">
                           <Star className="size-4 fill-current text-[#d99735]" />
@@ -276,9 +276,9 @@ export default async function MatchPage({
                         </span>
                       </div>
                     </div>
-                    <div className="flex flex-row gap-2 md:flex-col md:items-end md:justify-between">
+                    <div className="flex flex-wrap gap-2 md:col-span-2 md:items-center md:justify-between 2xl:col-span-1 2xl:flex-col 2xl:items-end 2xl:justify-between">
                       <div className="rounded-2xl bg-[#f8f3ec] px-4 py-2 text-sm font-semibold text-[#2f241e]">{offer.price_mode}</div>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         <ButtonLink href={`/app/match/services/${offer.id}`} className="h-10 px-4">
                           {dict.common.viewDetails}
                         </ButtonLink>
@@ -339,7 +339,7 @@ export default async function MatchPage({
             )}
           </section>
 
-          <aside className="grid gap-4 xl:sticky xl:top-8 xl:self-start">
+          <aside className="grid gap-4 xl:col-span-2 2xl:col-span-1 2xl:sticky 2xl:top-8 2xl:self-start">
             <Panel className="rounded-[1.5rem] bg-white/90 p-5 shadow-[0_18px_54px_rgba(47,35,22,0.08)]">
               <div className="flex items-center gap-3">
                 <div className="flex size-11 items-center justify-center rounded-full bg-[#fff0d8] text-[#b97716]">
