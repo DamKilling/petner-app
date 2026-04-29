@@ -5,7 +5,7 @@ import { sendMessage } from "@/app/actions";
 import { BookingTimeline, TrustBadge } from "@/components/product-ui";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { ButtonLink, PageHeader, Panel, SubmitButton } from "@/components/ui";
-import { getBookingTimeline, getChatThread, getCurrentUser } from "@/lib/data";
+import { getBookingDetail, getBookingTimeline, getChatThread, getCurrentUser } from "@/lib/data";
 import { cn, formatDate } from "@/lib/utils";
 
 export default async function ChatDetailPage({
@@ -16,7 +16,8 @@ export default async function ChatDetailPage({
   const { threadId } = await params;
   const user = await getCurrentUser();
   const data = await getChatThread(threadId);
-  const bookings = await getBookingTimeline(user?.id ?? "demo");
+  const linkedBooking = data?.thread.booking_id ? await getBookingDetail(data.thread.booking_id) : null;
+  const bookings = linkedBooking ? [linkedBooking] : await getBookingTimeline(user?.id ?? "demo");
 
   if (!data) {
     notFound();

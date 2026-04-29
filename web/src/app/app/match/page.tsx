@@ -1,34 +1,41 @@
 import Link from "next/link";
 
 import { createPost, openChat, toggleLike } from "@/app/actions";
-import { EmptyState, Field, PageHeader, Panel, SelectField, SubmitButton, TextArea } from "@/components/ui";
-import { PetCard, ReviewHighlight, SectionTabs, ServiceCard, TrustBadge } from "@/components/product-ui";
-import { getCurrentUser, getDiscoverPets, getFeedPosts, getOwnedPets, getReviewSummary, getServiceOffers } from "@/lib/data";
+import { ButtonLink, EmptyState, Field, PageHeader, Panel, SelectField, SubmitButton, TextArea } from "@/components/ui";
+import { PetCard, ReviewHighlight, SectionTabs, ServiceCard, ServiceRequestCard, TrustBadge } from "@/components/product-ui";
+import { getCurrentUser, getDiscoverPets, getFeedPosts, getOwnedPets, getReviewSummary, getServiceBoardData } from "@/lib/data";
 import { formatDate } from "@/lib/utils";
+
+const serviceTypes = ["宠物陪伴", "玩伴匹配", "临时照看", "附近活动"];
 
 export default async function MatchPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ tab?: string }>;
+  searchParams?: Promise<{ tab?: string; surface?: string; serviceType?: string; city?: string }>;
 }) {
   const resolvedSearchParams = (await searchParams) ?? {};
   const activeTab = resolvedSearchParams.tab === "services" ? "services" : "community";
+  const serviceSurface = resolvedSearchParams.surface === "requests" ? "requests" : "offers";
+  const serviceType = resolvedSearchParams.serviceType;
+  const city = resolvedSearchParams.city;
   const user = await getCurrentUser();
-  const [discoverPets, ownedPets, posts, offers, reviewSummary] = await Promise.all([
+  const [discoverPets, ownedPets, posts, serviceBoard, reviewSummary] = await Promise.all([
     getDiscoverPets(user?.id ?? "demo"),
     getOwnedPets(user?.id ?? "demo"),
     getFeedPosts(user?.id ?? "demo"),
-    getServiceOffers(user?.id ?? "demo"),
+    getServiceBoardData({ userID: user?.id ?? "demo", surface: serviceSurface, serviceType, city }),
     getReviewSummary(),
   ]);
   const visiblePets = [...ownedPets, ...discoverPets];
+  const offers = serviceBoard.offers;
+  const requests = serviceBoard.requests;
 
   return (
     <div className="grid gap-8">
       <PageHeader
         eyebrow="Community & Services"
         title="先通过内容和档案建立判断，再继续联系与预约。"
-        description="PetLife 把社区内容流和服务匹配放在同一个工作区里：社区负责活跃与发现，服务负责清晰转化。"
+        description="社区负责发现和互动，服务负责把陪伴、玩伴、照看与活动关系推进到可确认的下一步。"
         action={
           <SectionTabs
             active={`/app/match?tab=${activeTab}`}
@@ -45,7 +52,7 @@ export default async function MatchPage({
           <div className="grid gap-4 xl:sticky xl:top-8 xl:self-start">
             <Panel>
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#b14e31]">发布动态</p>
-              <h2 className="mt-3 text-2xl font-semibold">让别人先看到你的宠物状态，再决定要不要继续联系。</h2>
+              <h2 className="mt-3 text-2xl font-semibold">让别人先看到宠物状态，再决定要不要继续联系。</h2>
               <form action={createPost} className="mt-6 grid gap-4">
                 <SelectField label="关联宠物" name="related_pet_id">
                   <option value="">不关联宠物</option>
@@ -134,10 +141,7 @@ export default async function MatchPage({
                 );
               })
             ) : (
-              <EmptyState
-                title="还没有社区动态"
-                detail="先发布第一条宠物日常、找玩伴或经验分享，系统会直接把你带入详情页继续互动。"
-              />
+              <EmptyState title="还没有社区动态" detail="先发布第一条宠物日常、找玩伴或经验分享，系统会直接把你带入详情页继续互动。" />
             )}
           </section>
 
@@ -159,17 +163,28 @@ export default async function MatchPage({
             <Panel>
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#b14e31]">快速筛选</p>
               <div className="mt-4 grid gap-2">
-                {["宠物陪伴", "玩伴匹配", "临时照看", "附近活动"].map((item, index) => (
-                  <div
+                <Link
+                  href={`/app/match?tab=services&surface=${serviceSurface}`}
+                  className={!serviceType ? "rounded-[1rem] bg-[#f06f4f] px-4 py-3 text-sm font-semibold text-white" : "rounded-[1rem] bg-black/[0.04] px-4 py-3 text-sm text-black/62"}
+                >
+                  全部服务
+                </Link>
+                {serviceTypes.map((item) => (
+                  <Link
                     key={item}
-                    className={index === 0 ? "rounded-[1rem] bg-[#f06f4f] px-4 py-3 text-sm font-semibold text-white" : "rounded-[1rem] bg-black/[0.04] px-4 py-3 text-sm text-black/62"}
+                    href={`/app/match?tab=services&surface=${serviceSurface}&serviceType=${encodeURIComponent(item)}`}
+                    className={serviceType === item ? "rounded-[1rem] bg-[#f06f4f] px-4 py-3 text-sm font-semibold text-white" : "rounded-[1rem] bg-black/[0.04] px-4 py-3 text-sm text-black/62"}
                   >
                     {item}
-                  </div>
+                  </Link>
                 ))}
               </div>
-              <p className="mt-5 text-xs leading-5 text-black/46">更多筛选可在移动端底部抽屉或桌面右侧扩展面板中继续添加。</p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <ButtonLink href="/app/match/services/new" variant="secondary">发布服务</ButtonLink>
+                <ButtonLink href="/app/match/requests/new" variant="ghost">发布需求</ButtonLink>
+              </div>
             </Panel>
+
             <Panel>
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#b14e31]">服务流程</p>
               <div className="mt-4 grid gap-3 text-sm text-black/62">
@@ -186,14 +201,28 @@ export default async function MatchPage({
           </div>
 
           <section className="grid gap-4">
-            {offers.length ? (
-              offers.map((offer) => (
-                <ServiceCard key={offer.id} offer={offer} href={offer.related_pet_id ? `/app/match/pets/${offer.related_pet_id}` : "/app/chats"} />
-              ))
+            <SectionTabs
+              active={`/app/match?tab=services&surface=${serviceSurface}`}
+              tabs={[
+                { href: "/app/match?tab=services&surface=offers", label: "可预约服务", meta: `${offers.length}` },
+                { href: "/app/match?tab=services&surface=requests", label: "需求广场", meta: `${requests.length}` },
+              ]}
+            />
+            {serviceSurface === "offers" && offers.length ? (
+              offers.map((offer) => <ServiceCard key={offer.id} offer={offer} href={`/app/match/services/${offer.id}`} />)
+            ) : serviceSurface === "requests" && requests.length ? (
+              requests.map((request) => <ServiceRequestCard key={request.id} request={request} href={`/app/match/requests/${request.id}`} />)
             ) : (
               <EmptyState
-                title="还没有可展示的服务项"
-                detail="接入更多用户和服务资料后，这里会成为陪伴、玩伴与预约的发现入口。"
+                title={serviceSurface === "offers" ? "还没有可展示的服务项" : "还没有开放中的需求"}
+                detail="可以先发布服务或需求，系统会把详情、聊天和预约串起来。"
+                action={
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <ButtonLink href="/app/match/services/new">发布服务</ButtonLink>
+                    <ButtonLink href="/app/match/requests/new" variant="secondary">发布需求</ButtonLink>
+                    <ButtonLink href="/app/match?tab=services" variant="ghost">清空筛选</ButtonLink>
+                  </div>
+                }
               />
             )}
           </section>
@@ -201,17 +230,11 @@ export default async function MatchPage({
           <div className="grid gap-4 xl:sticky xl:top-8 xl:self-start">
             <ReviewHighlight summary={reviewSummary} />
             <Panel>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#b14e31]">先看这些宠物档案</p>
-              <div className="mt-4 grid gap-3">
-                {discoverPets.slice(0, 2).map((pet) => (
-                  <PetCard
-                    key={pet.id}
-                    pet={pet}
-                    href={`/app/match/pets/${pet.id}`}
-                    ctaLabel="查看可预约信息"
-                    compact
-                  />
-                ))}
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#b14e31]">服务入口</p>
+              <div className="mt-4 grid gap-2">
+                <ButtonLink href="/app/match/services/new">发布我能提供的服务</ButtonLink>
+                <ButtonLink href="/app/match/requests/new" variant="secondary">发布我的需求</ButtonLink>
+                <ButtonLink href="/app/profile?tab=account" variant="ghost">查看我的预约</ButtonLink>
               </div>
             </Panel>
           </div>

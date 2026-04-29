@@ -386,6 +386,314 @@ export async function openChat(formData: FormData) {
   redirect(`/app/chats/${threadID}`);
 }
 
+export async function createServiceOffer(formData: FormData) {
+  const { supabase, user } = await getAuthenticatedSupabase();
+  const offerID = crypto.randomUUID();
+  const { error } = await supabase.from("service_offers").insert({
+    id: offerID,
+    provider_id: user.id,
+    related_pet_id: text(formData, "related_pet_id") || null,
+    title: text(formData, "title"),
+    intro: text(formData, "intro"),
+    service_types: splitTags(formData.get("service_types")),
+    service_area: text(formData, "service_area"),
+    price_mode: text(formData, "price_mode", "先聊后定"),
+    availability_summary: text(formData, "availability_summary", "待沟通"),
+    status: "active",
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/app/match");
+  redirect(`/app/match/services/${offerID}`);
+}
+
+export async function updateServiceOfferStatus(formData: FormData) {
+  const { supabase, user } = await getAuthenticatedSupabase();
+  const offerID = text(formData, "offer_id");
+  const status = text(formData, "status", "active");
+  const { error } = await supabase
+    .from("service_offers")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", offerID)
+    .eq("provider_id", user.id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/app/match");
+  revalidatePath(`/app/match/services/${offerID}`);
+}
+
+export async function createServiceRequest(formData: FormData) {
+  const { supabase, user } = await getAuthenticatedSupabase();
+  const requestID = crypto.randomUUID();
+  const { error } = await supabase.from("service_requests").insert({
+    id: requestID,
+    requester_id: user.id,
+    related_pet_id: text(formData, "related_pet_id") || null,
+    title: text(formData, "title"),
+    detail: text(formData, "detail"),
+    request_type: text(formData, "request_type", "宠物陪伴"),
+    city: text(formData, "city", "上海"),
+    preferred_time_summary: text(formData, "preferred_time_summary", "待沟通"),
+    budget_summary: text(formData, "budget_summary", "先聊后定"),
+    status: "open",
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/app/match");
+  redirect(`/app/match/requests/${requestID}`);
+}
+
+export async function updateServiceRequestStatus(formData: FormData) {
+  const { supabase, user } = await getAuthenticatedSupabase();
+  const requestID = text(formData, "request_id");
+  const status = text(formData, "status", "open");
+  const { error } = await supabase
+    .from("service_requests")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", requestID)
+    .eq("requester_id", user.id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/app/match");
+  revalidatePath(`/app/match/requests/${requestID}`);
+}
+
+export async function openServiceChat(formData: FormData) {
+  const { supabase, user } = await getAuthenticatedSupabase();
+  const sourceKind = text(formData, "source_kind", "offer");
+  const sourceID = text(formData, "source_id");
+
+  if (sourceKind === "request") {
+    const { data: request, error } = await supabase
+      .from("service_requests")
+      .select("id,requester_id,related_pet_id,title,request_type")
+      .eq("id", sourceID)
+      .single<{ id: string; requester_id: string; related_pet_id: string | null; title: string; request_type: string }>();
+
+    if (error || !request) {
+      throw new Error(error?.message ?? "服务需求不存在。");
+    }
+
+    const { data: existing } = await supabase
+      .from("chat_threads")
+      .select("id")
+      .eq("service_request_id", request.id)
+      .eq("initiator_id", user.id)
+      .maybeSingle<{ id: string }>();
+
+    if (existing) {
+      redirect(`/app/chats/${existing.id}`);
+    }
+
+    const threadID = crypto.randomUUID();
+    const { error: insertError } = await supabase.from("chat_threads").insert({
+      id: threadID,
+      related_pet_id: request.related_pet_id,
+      service_request_id: request.id,
+      pet_owner_id: request.requester_id,
+      initiator_id: user.id,
+      title: `服务需求沟通：${request.title}`,
+      subtitle: `来自需求广场 · ${request.request_type}`,
+      accent: "sky",
+    });
+
+    if (insertError) {
+      throw new Error(insertError.message);
+    }
+
+    redirect(`/app/chats/${threadID}`);
+  }
+
+  const { data: offer, error } = await supabase
+    .from("service_offers")
+    .select("id,provider_id,related_pet_id,title,service_types")
+    .eq("id", sourceID)
+    .single<{ id: string; provider_id: string; related_pet_id: string | null; title: string; service_types: string[] }>();
+
+  if (error || !offer) {
+    throw new Error(error?.message ?? "服务项目不存在。");
+  }
+
+  const { data: existing } = await supabase
+    .from("chat_threads")
+    .select("id")
+    .eq("service_offer_id", offer.id)
+    .eq("initiator_id", user.id)
+    .maybeSingle<{ id: string }>();
+
+  if (existing) {
+    redirect(`/app/chats/${existing.id}`);
+  }
+
+  const threadID = crypto.randomUUID();
+  const { error: insertError } = await supabase.from("chat_threads").insert({
+    id: threadID,
+    related_pet_id: offer.related_pet_id,
+    service_offer_id: offer.id,
+    pet_owner_id: offer.provider_id,
+    initiator_id: user.id,
+    title: `服务沟通：${offer.title}`,
+    subtitle: `来自服务卡 · ${(offer.service_types ?? []).join(" / ")}`,
+    accent: "mint",
+  });
+
+  if (insertError) {
+    throw new Error(insertError.message);
+  }
+
+  redirect(`/app/chats/${threadID}`);
+}
+
+export async function createBookingDraft(formData: FormData) {
+  const { supabase, user } = await getAuthenticatedSupabase();
+  const sourceKind = text(formData, "source_kind", "offer");
+  const sourceID = text(formData, "source_id");
+  const threadID = text(formData, "thread_id") || null;
+  let booking: {
+    source_kind: string;
+    service_offer_id: string | null;
+    service_request_id: string | null;
+    requester_id: string;
+    provider_id: string;
+    related_pet_id: string | null;
+    service_type: string;
+  };
+
+  if (sourceKind === "request") {
+    const { data: request, error } = await supabase
+      .from("service_requests")
+      .select("id,requester_id,related_pet_id,request_type")
+      .eq("id", sourceID)
+      .single<{ id: string; requester_id: string; related_pet_id: string | null; request_type: string }>();
+
+    if (error || !request) {
+      throw new Error(error?.message ?? "服务需求不存在。");
+    }
+
+    booking = {
+      source_kind: "request",
+      service_offer_id: null,
+      service_request_id: request.id,
+      requester_id: request.requester_id,
+      provider_id: user.id,
+      related_pet_id: request.related_pet_id,
+      service_type: request.request_type,
+    };
+  } else {
+    const { data: offer, error } = await supabase
+      .from("service_offers")
+      .select("id,provider_id,related_pet_id,service_types")
+      .eq("id", sourceID)
+      .single<{ id: string; provider_id: string; related_pet_id: string | null; service_types: string[] }>();
+
+    if (error || !offer) {
+      throw new Error(error?.message ?? "服务项目不存在。");
+    }
+
+    booking = {
+      source_kind: "offer",
+      service_offer_id: offer.id,
+      service_request_id: null,
+      requester_id: user.id,
+      provider_id: offer.provider_id,
+      related_pet_id: offer.related_pet_id,
+      service_type: offer.service_types?.[0] ?? "宠物陪伴",
+    };
+  }
+
+  const existingQuery = supabase
+    .from("bookings")
+    .select("id")
+    .eq("requester_id", booking.requester_id)
+    .eq("provider_id", booking.provider_id)
+    .neq("status", "cancelled");
+  const { data: existing } =
+    booking.source_kind === "offer"
+      ? await existingQuery.eq("service_offer_id", booking.service_offer_id).maybeSingle<{ id: string }>()
+      : await existingQuery.eq("service_request_id", booking.service_request_id).maybeSingle<{ id: string }>();
+
+  if (existing) {
+    redirect(`/app/match/bookings/${existing.id}`);
+  }
+
+  const bookingID = crypto.randomUUID();
+  const { error } = await supabase.from("bookings").insert({
+    id: bookingID,
+    ...booking,
+    thread_id: threadID,
+    scheduled_time: text(formData, "scheduled_time", "待双方确认具体时间"),
+    location_summary: text(formData, "location_summary", "先在消息页确认地点"),
+    price_summary: text(formData, "price_summary", "价格与频次待双方确认"),
+    notes: text(formData, "notes"),
+    status: "draft",
+    safety_notice: "提交前请核对宠物健康信息、见面地点与应急联系人。",
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (threadID) {
+    await supabase.from("chat_threads").update({ booking_id: bookingID }).eq("id", threadID);
+  }
+
+  revalidatePath("/app");
+  revalidatePath("/app/profile");
+  revalidatePath("/app/chats");
+  redirect(`/app/match/bookings/${bookingID}`);
+}
+
+export async function updateBookingStatus(formData: FormData) {
+  const { supabase } = await getAuthenticatedSupabase();
+  const bookingID = text(formData, "booking_id");
+  const status = text(formData, "status", "pending");
+  const { error } = await supabase
+    .from("bookings")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", bookingID);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/app");
+  revalidatePath("/app/profile");
+  revalidatePath(`/app/match/bookings/${bookingID}`);
+}
+
+export async function submitServiceReview(formData: FormData) {
+  const { supabase, user } = await getAuthenticatedSupabase();
+  const bookingID = text(formData, "booking_id");
+  const revieweeID = text(formData, "reviewee_id");
+  const rating = Number(text(formData, "rating", "5"));
+  const { error } = await supabase.from("service_reviews").insert({
+    booking_id: bookingID,
+    reviewer_id: user.id,
+    reviewee_id: revieweeID,
+    rating,
+    tags: splitTags(formData.get("tags")),
+    body: text(formData, "body"),
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath(`/app/match/bookings/${bookingID}`);
+}
+
 export async function sendMessage(formData: FormData) {
   const { supabase, user } = await getAuthenticatedSupabase();
   const threadID = text(formData, "thread_id");

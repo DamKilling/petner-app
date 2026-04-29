@@ -1,9 +1,9 @@
-import { CalendarClock, CheckCircle2, Clock3, MapPin, MessageCircle, ShieldCheck, Star } from "lucide-react";
+import { CalendarClock, CheckCircle2, Clock3, MapPin, MessageCircle, ShieldCheck, Star, UsersRound } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { accentSoftClasses, trustToneClasses } from "@/lib/theme";
-import type { AppNotification, Booking, Pet, ReviewSummary, ServiceOffer } from "@/lib/types";
+import type { AppNotification, Booking, Pet, ReviewSummary, ServiceOffer, ServiceRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type Tone = keyof typeof trustToneClasses;
@@ -200,6 +200,7 @@ export function ServiceCard({
               ))}
             </div>
             <h3 className="mt-3 text-xl font-semibold tracking-tight">{offer.provider_name}</h3>
+            {offer.title ? <p className="mt-1 text-base font-semibold text-[#2f241e]">{offer.title}</p> : null}
             <p className="mt-2 text-sm text-black/52">{offer.intro}</p>
           </div>
           <div className="rounded-[1.2rem] border border-black/8 bg-[#fff7ef] px-4 py-3 text-right">
@@ -245,6 +246,56 @@ export function ServiceCard({
           ) : (
             <button className="text-sm font-semibold text-[#b74c30]">发起联系</button>
           )}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+export function ServiceRequestCard({
+  request,
+  href,
+}: {
+  request: ServiceRequest;
+  href: string;
+}) {
+  return (
+    <article className="overflow-hidden rounded-[1.8rem] border border-black/10 bg-white/82 shadow-[0_18px_50px_rgba(47,35,22,0.06)]">
+      <div className="grid gap-4 p-5 md:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <span className="rounded-full bg-[#9bb89a]/16 px-3 py-1 text-xs font-semibold text-[#4e6950]">
+              {request.request_type}
+            </span>
+            <h3 className="mt-3 text-xl font-semibold tracking-tight">{request.title}</h3>
+            <p className="mt-2 text-sm leading-6 text-black/58">{request.detail}</p>
+          </div>
+          <div className="rounded-[1.2rem] border border-black/8 bg-[#f5faf3] px-4 py-3 text-right">
+            <p className="text-xs text-black/45">状态</p>
+            <p className="mt-1 text-sm font-semibold">{request.status === "open" ? "开放中" : request.status === "matched" ? "已匹配" : "已关闭"}</p>
+          </div>
+        </div>
+
+        <div className="grid gap-3 text-sm text-black/62 md:grid-cols-3">
+          <div className="flex items-center gap-2">
+            <MapPin className="size-4 text-black/42" />
+            {request.city}
+          </div>
+          <div className="flex items-center gap-2">
+            <Clock3 className="size-4 text-black/42" />
+            {request.preferred_time_summary}
+          </div>
+          <div className="flex items-center gap-2">
+            <UsersRound className="size-4 text-black/42" />
+            {request.related_pet_name ?? "无宠物档案需求"}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-black/8 pt-4">
+          <p className="text-sm text-black/58">{request.budget_summary}</p>
+          <Link href={href} className="text-sm font-semibold text-[#b74c30] hover:text-[#9b3f27]">
+            查看需求
+          </Link>
         </div>
       </div>
     </article>
@@ -300,6 +351,9 @@ export function BookingTimeline({ items }: { items: Booking[] }) {
           </div>
           <p className="mt-3 text-sm text-black/62">{item.price_summary}</p>
           <p className="mt-2 text-xs text-black/45">{item.safety_notice}</p>
+          <Link href={`/app/match/bookings/${item.id}`} className="mt-3 inline-flex text-sm font-semibold text-[#b74c30]">
+            查看预约详情
+          </Link>
         </div>
       ))}
     </div>

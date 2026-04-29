@@ -7,6 +7,7 @@ import type {
   Profile,
   ReviewSummary,
   ServiceOffer,
+  ServiceRequest,
   Video,
 } from "@/lib/types";
 
@@ -165,6 +166,25 @@ export const demoServiceOffers: ServiceOffer[] = [
     rating_count: 11,
     repeat_booking_count: 4,
     intro: "更适合安静、慢热的陪伴场景，可先线上确认互动节奏。",
+  },
+];
+
+export const demoServiceRequests: ServiceRequest[] = [
+  {
+    id: "request-weekend-walk",
+    requester_id: "demo",
+    requester_name: "PetLife 用户",
+    related_pet_id: null,
+    related_pet_name: null,
+    title: "想找周末一起遛宠的同城家庭",
+    detail: "希望先线上沟通宠物性格和疫苗情况，再约一个开放草地短时间见面。",
+    request_type: "玩伴匹配",
+    city: "上海",
+    preferred_time_summary: "周末下午",
+    budget_summary: "先沟通，后续按次确认",
+    status: "open",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   },
 ];
 

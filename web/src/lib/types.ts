@@ -1,6 +1,10 @@
 export type AccentToken = "ember" | "pine" | "sky" | "peach" | "plum" | "mint";
 export type UploadStatus = "draft" | "uploading" | "reviewing" | "published";
 export type PetVisibility = "public" | "private";
+export type ServiceOfferStatus = "active" | "paused";
+export type ServiceRequestStatus = "open" | "matched" | "closed";
+export type BookingStatus = "draft" | "pending" | "confirmed" | "completed" | "cancelled";
+export type BookingSourceKind = "offer" | "request";
 
 export type Profile = {
   id: string;
@@ -100,7 +104,10 @@ export type PostComment = {
 
 export type ChatThread = {
   id: string;
-  related_pet_id: string;
+  related_pet_id: string | null;
+  service_offer_id?: string | null;
+  service_request_id?: string | null;
+  booking_id?: string | null;
   pet_owner_id: string;
   initiator_id: string;
   title: string;
@@ -121,6 +128,7 @@ export type ChatMessage = {
 export type ServiceOffer = {
   id: string;
   provider_id: string;
+  title?: string;
   provider_name: string;
   related_pet_id?: string | null;
   related_pet_name?: string | null;
@@ -134,17 +142,62 @@ export type ServiceOffer = {
   rating_count: number;
   repeat_booking_count: number;
   intro: string;
+  status?: ServiceOfferStatus;
+  provider_profile?: Profile | null;
+  related_pet?: Pet | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type ServiceRequest = {
+  id: string;
+  requester_id: string;
+  requester_name: string;
+  related_pet_id: string | null;
+  related_pet_name: string | null;
+  title: string;
+  detail: string;
+  request_type: string;
+  city: string;
+  preferred_time_summary: string;
+  budget_summary: string;
+  status: ServiceRequestStatus;
+  requester_profile?: Profile | null;
+  related_pet?: Pet | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type Booking = {
   id: string;
-  status: "draft" | "pending" | "confirmed" | "completed" | "cancelled";
+  source_kind?: BookingSourceKind;
+  service_offer_id?: string | null;
+  service_request_id?: string | null;
+  thread_id?: string | null;
+  requester_id?: string;
+  provider_id?: string;
+  related_pet_id?: string | null;
+  status: BookingStatus;
   service_type: string;
   scheduled_time: string;
   participants: string[];
   location_summary: string;
   price_summary: string;
+  notes?: string;
   safety_notice: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type ServiceReview = {
+  id: string;
+  booking_id: string;
+  reviewer_id: string;
+  reviewee_id: string;
+  rating: number;
+  tags: string[];
+  body: string;
+  created_at: string;
 };
 
 export type ReviewSummary = {

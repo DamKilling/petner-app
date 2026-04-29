@@ -9,6 +9,7 @@ import {
   demoProfile,
   demoReviewSummary,
   demoServiceOffers,
+  demoServiceRequests,
   demoVideos,
 } from "@/lib/demo-data";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -24,6 +25,7 @@ import type {
   Profile,
   ReviewSummary,
   ServiceOffer,
+  ServiceRequest,
   Video,
   Booking,
 } from "@/lib/types";
@@ -437,6 +439,8 @@ export async function getServiceOffers(userID: string) {
     return demoServiceOffers;
   }
 
+  return (await getServiceBoardData({ userID })).offers;
+
   const pets = await getDiscoverPets(userID);
 
   if (!pets.length) {
@@ -471,6 +475,170 @@ export async function getServiceOffers(userID: string) {
   })) satisfies ServiceOffer[];
 }
 
+async function getProfilesByIds(ids: string[]) {
+  if (!ids.length || !isSupabaseConfigured()) {
+    return new Map<string, Profile>();
+  }
+
+  const supabase = await createClient();
+  const { data } = await supabase.from("profiles").select("*").in("id", ids).returns<Profile[]>();
+  return new Map((data ?? []).map((profile) => [profile.id, withProfileDefaults(profile)]));
+}
+
+async function getPetsByIds(ids: string[]) {
+  if (!ids.length || !isSupabaseConfigured()) {
+    return new Map<string, Pet>();
+  }
+
+  const supabase = await createClient();
+  const { data } = await supabase.from("pets").select("*").in("id", ids).returns<Pet[]>();
+  return new Map((data ?? []).map((pet) => [pet.id, withPetDefaults(pet)]));
+}
+
+function offerTrustBadges(profile: Profile | null, pet: Pet | null) {
+  return [
+    profile?.verification_status === "verified" ? "实名认证" : "资料可见",
+    pet?.vaccine_status === "complete" || pet?.vaccinated ? "宠物信息完整" : "健康信息待确认",
+    (profile?.repeat_booking_count ?? 0) > 0 ? `${profile?.repeat_booking_count} 次复约` : "可先聊天确认",
+  ];
+}
+
+function normalizeOffer(offer: ServiceOffer, profile?: Profile | null, pet?: Pet | null): ServiceOffer {
+  return {
+    ...offer,
+    title: offer.title ?? `${pet?.name ?? offer.related_pet_name ?? "宠物"} 的陪伴服务`,
+    provider_name: offer.provider_name ?? profile?.display_name ?? "PetLife 用户",
+    related_pet_name: offer.related_pet_name ?? pet?.name ?? null,
+    trust_badges: offer.trust_badges?.length ? offer.trust_badges : offerTrustBadges(profile ?? null, pet ?? null),
+    response_time_label: offer.response_time_label ?? profile?.response_time_label ?? "通常 30 分钟内回复",
+    rating_avg: offer.rating_avg ?? profile?.rating_avg ?? 4.8,
+    rating_count: offer.rating_count ?? profile?.rating_count ?? 0,
+    repeat_booking_count: offer.repeat_booking_count ?? profile?.repeat_booking_count ?? 0,
+    status: offer.status ?? "active",
+    provider_profile: profile ?? null,
+    related_pet: pet ?? null,
+  };
+}
+
+function normalizeRequest(request: ServiceRequest, profile?: Profile | null, pet?: Pet | null): ServiceRequest {
+  return {
+    ...request,
+    requester_name: request.requester_name ?? profile?.display_name ?? "PetLife 用户",
+    related_pet_name: request.related_pet_name ?? pet?.name ?? null,
+    requester_profile: profile ?? null,
+    related_pet: pet ?? null,
+  };
+}
+
+export async function getServiceBoardData({
+  userID,
+  surface = "offers",
+  serviceType,
+  city,
+}: {
+  userID: string;
+  surface?: "offers" | "requests";
+  serviceType?: string;
+  city?: string;
+}) {
+  noStore();
+
+  if (!isSupabaseConfigured()) {
+    return {
+      surface,
+      offers: demoServiceOffers
+        .filter((offer) => !serviceType || offer.service_types.includes(serviceType))
+        .filter((offer) => !city || offer.service_area.includes(city))
+        .map((offer) => normalizeOffer(offer, demoProfile, demoPets.find((pet) => pet.id === offer.related_pet_id))),
+      requests: demoServiceRequests
+        .filter((request) => !serviceType || request.request_type === serviceType)
+        .filter((request) => !city || request.city.includes(city))
+        .map((request) => normalizeRequest(request, demoProfile, demoPets.find((pet) => pet.id === request.related_pet_id))),
+    };
+  }
+
+  void userID;
+  const supabase = await createClient();
+  let offerQuery = supabase.from("service_offers").select("*").order("created_at", { ascending: false });
+  let requestQuery = supabase.from("service_requests").select("*").order("created_at", { ascending: false });
+
+  if (serviceType) {
+    offerQuery = offerQuery.contains("service_types", [serviceType]);
+    requestQuery = requestQuery.eq("request_type", serviceType);
+  }
+
+  if (city) {
+    offerQuery = offerQuery.ilike("service_area", `%${city}%`);
+    requestQuery = requestQuery.ilike("city", `%${city}%`);
+  }
+
+  const [{ data: rawOffers }, { data: rawRequests }] = await Promise.all([
+    offerQuery.returns<ServiceOffer[]>(),
+    requestQuery.returns<ServiceRequest[]>(),
+  ]);
+  const profileIDs = [
+    ...(rawOffers ?? []).map((offer) => offer.provider_id),
+    ...(rawRequests ?? []).map((request) => request.requester_id),
+  ];
+  const petIDs = [
+    ...(rawOffers ?? []).map((offer) => offer.related_pet_id).filter((id): id is string => Boolean(id)),
+    ...(rawRequests ?? []).map((request) => request.related_pet_id).filter((id): id is string => Boolean(id)),
+  ];
+  const [profiles, pets] = await Promise.all([getProfilesByIds([...new Set(profileIDs)]), getPetsByIds([...new Set(petIDs)])]);
+
+  return {
+    surface,
+    offers: (rawOffers ?? []).map((offer) => normalizeOffer(offer, profiles.get(offer.provider_id), offer.related_pet_id ? pets.get(offer.related_pet_id) : null)),
+    requests: (rawRequests ?? []).map((request) => normalizeRequest(request, profiles.get(request.requester_id), request.related_pet_id ? pets.get(request.related_pet_id) : null)),
+  };
+}
+
+export async function getServiceOfferDetail(offerID: string) {
+  noStore();
+
+  if (!isSupabaseConfigured()) {
+    const offer = demoServiceOffers.find((item) => item.id === offerID);
+    return offer ? normalizeOffer(offer, demoProfile, demoPets.find((pet) => pet.id === offer.related_pet_id)) : null;
+  }
+
+  const supabase = await createClient();
+  const { data: offer } = await supabase.from("service_offers").select("*").eq("id", offerID).maybeSingle<ServiceOffer>();
+
+  if (!offer) {
+    return null;
+  }
+
+  const [profiles, pets] = await Promise.all([
+    getProfilesByIds([offer.provider_id]),
+    offer.related_pet_id ? getPetsByIds([offer.related_pet_id]) : Promise.resolve(new Map<string, Pet>()),
+  ]);
+
+  return normalizeOffer(offer, profiles.get(offer.provider_id), offer.related_pet_id ? pets.get(offer.related_pet_id) : null);
+}
+
+export async function getServiceRequestDetail(requestID: string) {
+  noStore();
+
+  if (!isSupabaseConfigured()) {
+    const request = demoServiceRequests.find((item) => item.id === requestID);
+    return request ? normalizeRequest(request, demoProfile, demoPets.find((pet) => pet.id === request.related_pet_id)) : null;
+  }
+
+  const supabase = await createClient();
+  const { data: request } = await supabase.from("service_requests").select("*").eq("id", requestID).maybeSingle<ServiceRequest>();
+
+  if (!request) {
+    return null;
+  }
+
+  const [profiles, pets] = await Promise.all([
+    getProfilesByIds([request.requester_id]),
+    request.related_pet_id ? getPetsByIds([request.related_pet_id]) : Promise.resolve(new Map<string, Pet>()),
+  ]);
+
+  return normalizeRequest(request, profiles.get(request.requester_id), request.related_pet_id ? pets.get(request.related_pet_id) : null);
+}
+
 export async function getReviewSummary(): Promise<ReviewSummary> {
   noStore();
 
@@ -494,6 +662,8 @@ export async function getBookingTimeline(userID: string): Promise<Booking[]> {
     return demoBookings;
   }
 
+  return getBookings(userID);
+
   return [
     {
       id: `booking-${userID}`,
@@ -506,6 +676,36 @@ export async function getBookingTimeline(userID: string): Promise<Booking[]> {
       safety_notice: "提交前请核对宠物健康信息、见面地点与应急联系人。",
     },
   ];
+}
+
+export async function getBookings(userID: string): Promise<Booking[]> {
+  noStore();
+
+  if (!isSupabaseConfigured()) {
+    return demoBookings;
+  }
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("bookings")
+    .select("*")
+    .or(`requester_id.eq.${userID},provider_id.eq.${userID}`)
+    .order("updated_at", { ascending: false })
+    .returns<Booking[]>();
+
+  return data ?? [];
+}
+
+export async function getBookingDetail(bookingID: string) {
+  noStore();
+
+  if (!isSupabaseConfigured()) {
+    return demoBookings.find((booking) => booking.id === bookingID) ?? null;
+  }
+
+  const supabase = await createClient();
+  const { data } = await supabase.from("bookings").select("*").eq("id", bookingID).maybeSingle<Booking>();
+  return data;
 }
 
 export async function getNotifications(userID: string): Promise<AppNotification[]> {
