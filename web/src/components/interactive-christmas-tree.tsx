@@ -52,14 +52,16 @@ const MODE_LABELS: Record<TreeMode, string> = {
   FOCUS: "聚焦回忆",
 };
 
-const DESKTOP_MAGIC_DUST_COUNT = 900;
-const MOBILE_MAGIC_DUST_COUNT = 520;
-const DESKTOP_NEEDLE_COUNT = 1350;
-const MOBILE_NEEDLE_COUNT = 760;
-const DESKTOP_SNOW_COUNT = 260;
-const MOBILE_SNOW_COUNT = 140;
+const DESKTOP_MAGIC_DUST_COUNT = 560;
+const MOBILE_MAGIC_DUST_COUNT = 360;
+const DESKTOP_NEEDLE_COUNT = 980;
+const MOBILE_NEEDLE_COUNT = 620;
+const DESKTOP_SNOW_COUNT = 120;
+const MOBILE_SNOW_COUNT = 72;
 const MODEL_URL = "/vendor/mediapipe/gesture_recognizer.task";
 const WASM_URL = "/vendor/mediapipe/wasm";
+const GESTURE_POLL_INTERVAL_MS = 600;
+const PERFORMANCE_RENDER_INTERVAL_MS = 1000 / 28;
 
 // Migration inspiration: https://github.com/xuzijan/gemini3-gesture-interactive-Christmas-tree
 function seededNoise(seed: number) {
@@ -86,6 +88,7 @@ export function InteractiveChristmasTree({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const gestureLoopTimeoutRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recognizerRef = useRef<GestureRecognizer | null>(null);
   const modeRef = useRef<TreeMode>("TREE");
@@ -193,6 +196,11 @@ export function InteractiveChristmasTree({
   }, []);
 
   const stopCamera = useCallback(() => {
+    if (gestureLoopTimeoutRef.current) {
+      window.clearTimeout(gestureLoopTimeoutRef.current);
+      gestureLoopTimeoutRef.current = null;
+    }
+
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
 
@@ -238,8 +246,9 @@ export function InteractiveChristmasTree({
         audio: false,
         video: {
           facingMode: "user",
-          height: { ideal: 360 },
-          width: { ideal: 480 },
+          frameRate: { ideal: 12, max: 15 },
+          height: { ideal: 240, max: 320 },
+          width: { ideal: 320, max: 420 },
         },
       });
 
@@ -327,13 +336,14 @@ export function InteractiveChristmasTree({
     composer.addPass(bloomPass);
 
     setRenderQualityRef.current = (enabled: boolean) => {
-      const pixelRatioLimit = enabled ? (isCompact ? 0.85 : 1.05) : isCompact ? 1.2 : 1.55;
+      const pixelRatioLimit = enabled ? (isCompact ? 0.66 : 0.78) : isCompact ? 1.2 : 1.55;
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, pixelRatioLimit));
       renderer.setSize(host.clientWidth, host.clientHeight);
       composer.setSize(host.clientWidth, host.clientHeight);
-      bloomPass.strength = enabled ? 0.14 : 0.3;
-      bloomPass.radius = enabled ? 0.14 : 0.24;
-      bloomPass.threshold = enabled ? 0.88 : 0.8;
+      bloomPass.enabled = !enabled;
+      bloomPass.strength = enabled ? 0.02 : 0.3;
+      bloomPass.radius = enabled ? 0.02 : 0.24;
+      bloomPass.threshold = enabled ? 0.98 : 0.8;
     };
     setRenderQualityRef.current(performanceModeRef.current);
 
@@ -698,23 +708,26 @@ export function InteractiveChristmasTree({
     memories.forEach((memory) => createPhoto(memory.photoUrl, memory.title));
 
     const clock = new THREE.Clock();
-    let lastGestureAt = 0;
     let frameIndex = 0;
+    let lastRenderAt = 0;
     let hasReportedRecognitionError = false;
+    let isRecognitionInFlight = false;
 
     function predictGesture(now: number) {
       const recognizer = recognizerRef.current;
       const video = videoRef.current;
 
-      if (!gestureEnabledRef.current || !recognizer || !video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+      if (
+        !gestureEnabledRef.current ||
+        !recognizer ||
+        !video ||
+        video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
+        isRecognitionInFlight
+      ) {
         return;
       }
 
-      if (now - lastGestureAt < 600) {
-        return;
-      }
-
-      lastGestureAt = now;
+      isRecognitionInFlight = true;
       let result: ReturnType<GestureRecognizer["recognizeForVideo"]>;
 
       try {
@@ -728,6 +741,8 @@ export function InteractiveChristmasTree({
 
         stopCamera();
         return;
+      } finally {
+        isRecognitionInFlight = false;
       }
 
       const gesture = result.gestures?.[0]?.[0];
@@ -745,41 +760,66 @@ export function InteractiveChristmasTree({
       }
     }
 
+    function scheduleGestureRecognition() {
+      if (!gestureEnabledRef.current) {
+        return;
+      }
+
+      gestureLoopTimeoutRef.current = window.setTimeout(() => {
+        predictGesture(performance.now());
+        scheduleGestureRecognition();
+      }, GESTURE_POLL_INTERVAL_MS);
+    }
+
     function animate(now: number) {
       frameIndex += 1;
+      if (gestureEnabledRef.current && !gestureLoopTimeoutRef.current) {
+        scheduleGestureRecognition();
+      }
+
       const elapsed = clock.getElapsedTime();
       const currentMode = modeRef.current;
       const performanceMode = performanceModeRef.current;
       const lerpAmount = currentMode === "SCATTER" ? 0.028 : 0.045;
+      const shouldThrottleParticles = performanceMode && frameIndex % 2 !== 0;
+      const shouldThrottleLights = performanceMode && frameIndex % 3 !== 0;
+      const shouldThrottlePhotos = performanceMode && frameIndex % 2 !== 0;
 
-      particles.forEach((particle, index) => {
-        const target = currentMode === "TREE" ? particle.tree : currentMode === "SCATTER" ? particle.scatter : particle.focus;
-        particle.current.lerp(target, lerpAmount);
-        dummy.position.copy(particle.current);
-        dummy.scale.setScalar(particle.scale * (1 + Math.sin(elapsed * 2.1 + index) * 0.08));
-        dummy.updateMatrix();
-        sparkleMesh.setMatrixAt(index, dummy.matrix);
-      });
+      if (!shouldThrottleParticles) {
+        particles.forEach((particle, index) => {
+          const target = currentMode === "TREE" ? particle.tree : currentMode === "SCATTER" ? particle.scatter : particle.focus;
+          particle.current.lerp(target, lerpAmount);
+          dummy.position.copy(particle.current);
+          dummy.scale.setScalar(particle.scale * (1 + Math.sin(elapsed * 2.1 + index) * 0.08));
+          dummy.updateMatrix();
+          sparkleMesh.setMatrixAt(index, dummy.matrix);
+        });
 
-      sparkleMesh.instanceMatrix.needsUpdate = true;
-      sparkleMesh.rotation.y += currentMode === "SCATTER" ? 0.0008 : 0.0016;
+        sparkleMesh.instanceMatrix.needsUpdate = true;
+      }
+
+      sparkleMesh.visible = !performanceMode;
+      sparkleMesh.rotation.y += performanceMode ? 0.00045 : currentMode === "SCATTER" ? 0.0008 : 0.0016;
       treeGroup.rotation.y += currentMode === "SCATTER" ? 0.00045 : 0.0009;
       const treeOpacityTarget = currentMode === "FOCUS" ? 0.48 : 1;
       treeFadableMaterials.forEach((material) => {
         material.opacity = THREE.MathUtils.lerp(material.opacity, treeOpacityTarget, 0.045);
       });
 
-      lightData.forEach((light, index) => {
-        const pulse = light.scale * (0.86 + Math.sin(elapsed * 2.4 + light.pulse) * 0.18);
-        dummy.position.copy(light.position);
-        dummy.quaternion.identity();
-        dummy.scale.setScalar(pulse);
-        dummy.updateMatrix();
-        lightMesh.setMatrixAt(index, dummy.matrix);
-      });
-      lightMesh.instanceMatrix.needsUpdate = true;
+      if (!shouldThrottleLights) {
+        lightData.forEach((light, index) => {
+          const pulse = light.scale * (0.86 + Math.sin(elapsed * 2.4 + light.pulse) * 0.18);
+          dummy.position.copy(light.position);
+          dummy.quaternion.identity();
+          dummy.scale.setScalar(pulse);
+          dummy.updateMatrix();
+          lightMesh.setMatrixAt(index, dummy.matrix);
+        });
+        lightMesh.instanceMatrix.needsUpdate = true;
+      }
 
-      if (!performanceMode || frameIndex % 3 === 0) {
+      snowMesh.visible = !performanceMode;
+      if (!performanceMode || frameIndex % 5 === 0) {
         snowData.forEach((snow, index) => {
           snow.position.y -= performanceMode ? snow.speed * 1.8 : snow.speed;
 
@@ -802,21 +842,33 @@ export function InteractiveChristmasTree({
       star.rotation.y += 0.018;
       star.rotation.x = Math.sin(elapsed * 1.3) * 0.18;
 
-      photoObjects.forEach((photo) => {
-        const target = currentMode === "TREE" ? photo.tree : currentMode === "SCATTER" ? photo.scatter : photo.focus;
-        photo.group.position.lerp(target, currentMode === "FOCUS" ? 0.065 : 0.045);
-        photo.group.lookAt(camera.position);
-        photo.group.rotation.z += Math.sin(elapsed + photo.spin) * 0.0008;
-      });
+      if (!shouldThrottlePhotos) {
+        photoObjects.forEach((photo) => {
+          const target = currentMode === "TREE" ? photo.tree : currentMode === "SCATTER" ? photo.scatter : photo.focus;
+          photo.group.position.lerp(target, currentMode === "FOCUS" ? 0.065 : 0.045);
+          photo.group.lookAt(camera.position);
+          photo.group.rotation.z += Math.sin(elapsed + photo.spin) * 0.0008;
+        });
+      }
 
-      controls.autoRotateSpeed = performanceMode ? 0.18 : 0.45;
+      controls.autoRotateSpeed = performanceMode ? 0.08 : 0.45;
       controls.update();
-      predictGesture(now);
-      composer.render();
+
+      if (!performanceMode || now - lastRenderAt >= PERFORMANCE_RENDER_INTERVAL_MS) {
+        lastRenderAt = now;
+
+        if (performanceMode) {
+          renderer.render(scene, camera);
+        } else {
+          composer.render();
+        }
+      }
+
       animationFrameRef.current = window.requestAnimationFrame(animate);
     }
 
     animationFrameRef.current = window.requestAnimationFrame(animate);
+    scheduleGestureRecognition();
 
     function handleResize() {
       const width = host.clientWidth;
