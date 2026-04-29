@@ -2,6 +2,7 @@ import { ArrowRight, CheckCircle2, HeartHandshake, MessageCircleMore, ShieldChec
 
 import { MarketingShell } from "@/components/marketing-shell";
 import { PetCard, ReviewHighlight, ServiceCard, TrustBadge } from "@/components/product-ui";
+import { RevealOnScroll } from "@/components/reveal-on-scroll";
 import { ButtonLink } from "@/components/ui";
 import { demoPets, demoReviewSummary, demoServiceOffers } from "@/lib/demo-data";
 
@@ -41,7 +42,7 @@ export default function Home() {
   return (
     <MarketingShell>
       <section className="grid gap-8 pb-12 pt-3 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:pb-18">
-        <div className="max-w-2xl">
+        <RevealOnScroll className="max-w-2xl">
           <p className="inline-flex items-center gap-2 rounded-full border border-black/8 bg-white/82 px-3 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-[#b14e31]">
             <ShieldCheck className="size-3.5" />
             社区优先的宠物陪伴平台
@@ -65,9 +66,9 @@ export default function Home() {
             <TrustBadge label="宠物信息完整" tone="trust" />
             <TrustBadge label="历史评价可追溯" tone="warm" />
           </div>
-        </div>
+        </RevealOnScroll>
 
-        <div className="grid gap-4">
+        <RevealOnScroll className="grid gap-4" delay={120}>
           <div className="overflow-hidden rounded-[2rem] border border-black/8 bg-[#1f1916] p-5 text-white shadow-[0_30px_80px_rgba(32,25,22,0.18)]">
             <div className="flex items-center justify-between gap-4">
               <div>
@@ -108,14 +109,18 @@ export default function Home() {
             </div>
           </div>
           <ReviewHighlight summary={demoReviewSummary} />
-        </div>
+        </RevealOnScroll>
       </section>
 
       <section className="grid gap-4 border-t border-black/8 py-12 md:grid-cols-3">
-        {featuredSections.map((item) => {
+        {featuredSections.map((item, index) => {
           const Icon = item.icon;
           return (
-            <div key={item.title} className="rounded-[1.8rem] border border-black/8 bg-white/72 p-5 shadow-[0_18px_50px_rgba(47,35,22,0.05)]">
+            <RevealOnScroll
+              key={item.title}
+              className="rounded-[1.8rem] border border-black/8 bg-white/72 p-5 shadow-[0_18px_50px_rgba(47,35,22,0.05)]"
+              delay={index * 90}
+            >
               <div className="flex size-11 items-center justify-center rounded-[1rem] bg-[#f06f4f]/12 text-[#b14e31]">
                 <Icon className="size-5" />
               </div>
@@ -124,13 +129,13 @@ export default function Home() {
               <ButtonLink href={item.href} variant="ghost" className="mt-5 px-0">
                 {item.cta}
               </ButtonLink>
-            </div>
+            </RevealOnScroll>
           );
         })}
       </section>
 
       <section className="grid gap-6 py-12 lg:grid-cols-[0.85fr_1.15fr]">
-        <div className="max-w-lg">
+        <RevealOnScroll className="max-w-lg">
           <p className="text-xs font-semibold uppercase tracking-[0.26em] text-[#b14e31]">社区精选</p>
           <h2 className="mt-4 text-4xl font-semibold tracking-tight">先看到真实的宠物日常，再决定要不要进一步联系。</h2>
           <p className="mt-4 text-base leading-8 text-black/62">
@@ -139,15 +144,15 @@ export default function Home() {
           <ButtonLink href="/community" variant="secondary" className="mt-6">
             查看更多内容
           </ButtonLink>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2">
+        </RevealOnScroll>
+        <RevealOnScroll className="grid gap-4 md:grid-cols-2" delay={120}>
           <PetCard href="/community" pet={demoPets[0]} ctaLabel="查看宠物档案" compact />
           <PetCard href="/community" pet={demoPets[1]} ctaLabel="看看它的日常" compact />
-        </div>
+        </RevealOnScroll>
       </section>
 
       <section className="grid gap-6 py-12 lg:grid-cols-[1.05fr_0.95fr]">
-        <div>
+        <RevealOnScroll>
           <p className="text-xs font-semibold uppercase tracking-[0.26em] text-[#b14e31]">服务流程</p>
           <h2 className="mt-4 text-4xl font-semibold tracking-tight">把服务做成一眼能看懂的步骤，而不是一堆说明文案。</h2>
           <div className="mt-6 grid gap-3">
@@ -160,23 +165,23 @@ export default function Home() {
               </div>
             ))}
           </div>
-        </div>
-        <div className="grid gap-4">
+        </RevealOnScroll>
+        <RevealOnScroll className="grid gap-4" delay={120}>
           {demoServiceOffers.map((offer) => (
             <ServiceCard key={offer.id} offer={offer} href="/services" />
           ))}
-        </div>
+        </RevealOnScroll>
       </section>
 
       <section className="grid gap-6 border-t border-black/8 py-12 lg:grid-cols-[1fr_0.9fr]">
-        <div>
+        <RevealOnScroll>
           <p className="text-xs font-semibold uppercase tracking-[0.26em] text-[#b14e31]">信任与安全</p>
           <h2 className="mt-4 text-4xl font-semibold tracking-tight">重要的不是说自己可靠，而是把可靠展示出来。</h2>
           <p className="mt-4 max-w-2xl text-base leading-8 text-black/62">
             PetLife 会把身份认证、宠物信息、历史评价、复约记录、响应速度和流程提示直接放在卡片、详情页和预约流程里，让用户在每一步都知道依据是什么。
           </p>
-        </div>
-        <div className="grid gap-3">
+        </RevealOnScroll>
+        <RevealOnScroll className="grid gap-3" delay={120}>
           {[
             "身份认证与宠物信息状态直接出现在卡片和详情页",
             "服务流程内展示安全提示、历史记录与下一步动作",
@@ -190,10 +195,10 @@ export default function Home() {
           <ButtonLink href="/safety" variant="secondary" className="mt-2">
             了解平台如何保障安全
           </ButtonLink>
-        </div>
+        </RevealOnScroll>
       </section>
 
-      <section className="rounded-[2.2rem] bg-[#1f1916] px-6 py-10 text-white shadow-[0_28px_80px_rgba(32,25,22,0.18)] md:px-8">
+      <RevealOnScroll className="rounded-[2.2rem] bg-[#1f1916] px-6 py-10 text-white shadow-[0_28px_80px_rgba(32,25,22,0.18)] md:px-8">
         <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
           <div className="max-w-2xl">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#f6c07b]">开始使用</p>
@@ -216,7 +221,7 @@ export default function Home() {
             </ButtonLink>
           </div>
         </div>
-      </section>
+      </RevealOnScroll>
     </MarketingShell>
   );
 }
