@@ -36,16 +36,16 @@ export function SectionTabs({
   active: string;
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-full border border-black/10 bg-white/75 p-1 shadow-[0_12px_32px_rgba(47,35,22,0.06)] backdrop-blur">
       {tabs.map((tab) => (
         <Link
           key={tab.href}
           href={tab.href}
           className={cn(
-            "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium",
+            "inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition hover:bg-white",
             active === tab.href
-              ? "border-[#f06f4f]/30 bg-[#f06f4f] text-white shadow-[0_10px_24px_rgba(240,111,79,0.18)]"
-              : "border-black/10 bg-white/80 text-black/62 hover:bg-white",
+              ? "bg-[#e96a4b] text-white shadow-[0_10px_22px_rgba(233,106,75,0.22)]"
+              : "text-black/58 hover:text-black/78",
           )}
         >
           {tab.label}
