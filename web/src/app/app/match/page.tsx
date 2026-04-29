@@ -171,7 +171,7 @@ export default async function MatchPage({
         </div>
       ) : (
         <div className="grid gap-5 xl:grid-cols-[17rem_minmax(0,1fr)] 2xl:grid-cols-[17rem_minmax(34rem,1fr)_20rem]">
-          <aside className="grid gap-4 xl:sticky xl:top-8 xl:self-start">
+          <aside className="grid gap-4 self-start 2xl:sticky 2xl:top-8">
             <Panel className="rounded-[1.5rem] bg-white/88 p-4 shadow-[0_16px_48px_rgba(47,35,22,0.07)] md:p-5">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-semibold text-[#2f241e]">{copy.quickFilter}</p>
@@ -339,7 +339,7 @@ export default async function MatchPage({
             )}
           </section>
 
-          <aside className="grid gap-4 xl:col-span-2 2xl:col-span-1 2xl:sticky 2xl:top-8 2xl:self-start">
+          <aside className="grid gap-4 xl:col-start-2 2xl:col-start-auto 2xl:sticky 2xl:top-8 2xl:self-start">
             <Panel className="rounded-[1.5rem] bg-white/90 p-5 shadow-[0_18px_54px_rgba(47,35,22,0.08)]">
               <div className="flex items-center gap-3">
                 <div className="flex size-11 items-center justify-center rounded-full bg-[#fff0d8] text-[#b97716]">
