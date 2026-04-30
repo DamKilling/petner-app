@@ -5,12 +5,14 @@ import { AppShell } from "@/components/app-shell";
 import { SetupNotice } from "@/components/setup-notice";
 import { demoProfile } from "@/lib/demo-data";
 import { getCurrentUser } from "@/lib/data";
+import { getDictionary } from "@/lib/i18n";
 import { getRequestLocale } from "@/lib/i18n-server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export default async function ProtectedLayout({ children }: { children: ReactNode }) {
   const configured = isSupabaseConfigured();
   const locale = await getRequestLocale();
+  const dict = getDictionary(locale);
   const user = await getCurrentUser();
 
   if (configured && !user) {
@@ -19,7 +21,7 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
 
   return (
     <AppShell isDemo={!configured} locale={locale} profile={user?.profile ?? demoProfile}>
-      {!configured ? <div className="mb-8"><SetupNotice /></div> : null}
+      {!configured ? <div className="mb-8"><SetupNotice copy={dict.setupNotice} /></div> : null}
       {children}
     </AppShell>
   );

@@ -6,6 +6,8 @@ import { BookingTimeline, TrustBadge } from "@/components/product-ui";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { ButtonLink, PageHeader, Panel, SubmitButton } from "@/components/ui";
 import { getBookingDetail, getBookingTimeline, getChatThread, getCurrentUser } from "@/lib/data";
+import { getDictionary } from "@/lib/i18n";
+import { getRequestLocale } from "@/lib/i18n-server";
 import { cn, formatDate } from "@/lib/utils";
 
 export default async function ChatDetailPage({
@@ -14,6 +16,9 @@ export default async function ChatDetailPage({
   params: Promise<{ threadId: string }>;
 }) {
   const { threadId } = await params;
+  const locale = await getRequestLocale();
+  const dict = getDictionary(locale);
+  const copy = dict.messages;
   const user = await getCurrentUser();
   const data = await getChatThread(threadId);
   const linkedBooking = data?.thread.booking_id ? await getBookingDetail(data.thread.booking_id) : null;
@@ -27,8 +32,8 @@ export default async function ChatDetailPage({
     <div className="grid gap-8">
       <RealtimeRefresh filter={`thread_id=eq.${threadId}`} table="chat_messages" />
       <PageHeader
-        action={<ButtonLink href="/app/chats?tab=conversations" variant="secondary">返回消息列表</ButtonLink>}
-        eyebrow="Conversation"
+        action={<ButtonLink href="/app/chats?tab=conversations" variant="secondary">{copy.backToMessages}</ButtonLink>}
+        eyebrow={copy.conversationEyebrow}
         title={data.thread.title}
         description={data.thread.subtitle}
       />
@@ -39,18 +44,18 @@ export default async function ChatDetailPage({
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <div className="flex flex-wrap gap-2">
-                  <TrustBadge label="可继续预约确认" tone="trust" />
-                  <TrustBadge label="宠物档案可查看" tone="verified" />
+                  <TrustBadge label={copy.continueBooking} tone="trust" />
+                  <TrustBadge label={copy.petProfileAvailable} tone="verified" />
                 </div>
                 <h2 className="mt-4 text-2xl font-semibold">{data.thread.title}</h2>
                 <p className="mt-2 text-sm leading-6 text-white/62">{data.thread.subtitle}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <ButtonLink href="/app/match?tab=services" variant="secondary">
-                  查看服务卡
+                  {copy.viewServiceCard}
                 </ButtonLink>
                 <ButtonLink href="/app/profile?tab=account" variant="ghost" className="text-white hover:text-white/76">
-                  查看我的主页
+                  {copy.viewMyProfile}
                 </ButtonLink>
               </div>
             </div>
@@ -77,7 +82,7 @@ export default async function ChatDetailPage({
                 );
               })
             ) : (
-              <p className="py-16 text-center text-sm text-black/45">还没有消息，先发一句问候，让关系开始流动。</p>
+              <p className="py-16 text-center text-sm text-black/45">{copy.noMessages}</p>
             )}
           </section>
 
@@ -86,10 +91,10 @@ export default async function ChatDetailPage({
             <input
               className="min-w-0 flex-1 rounded-full border border-black/10 px-5 text-base"
               name="text"
-              placeholder="输入消息，也可以先确认时间、地点或注意事项"
+              placeholder={copy.inputPlaceholder}
               required
             />
-            <SubmitButton>发送</SubmitButton>
+            <SubmitButton>{copy.send}</SubmitButton>
           </form>
         </div>
 
@@ -100,14 +105,14 @@ export default async function ChatDetailPage({
                 <Star className="size-4 fill-current" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold">聊天里的信任线索</h2>
-                <p className="mt-1 text-sm text-black/56">不要让用户离开消息页，才能知道下一步该做什么。</p>
+                <h2 className="text-lg font-semibold">{copy.trustTitle}</h2>
+                <p className="mt-1 text-sm text-black/56">{copy.trustDetail}</p>
               </div>
             </div>
             <div className="mt-5 grid gap-2">
-              <TrustBadge label="身份信息可见" tone="verified" />
-              <TrustBadge label="预约状态可追踪" tone="trust" />
-              <TrustBadge label="建议核对安全信息" tone="warm" />
+              <TrustBadge label={copy.identityVisible} tone="verified" />
+              <TrustBadge label={copy.bookingTraceable} tone="trust" />
+              <TrustBadge label={copy.safetyCheckSuggested} tone="warm" />
             </div>
           </Panel>
 
@@ -115,12 +120,12 @@ export default async function ChatDetailPage({
             <div className="flex items-center gap-3">
               <CalendarClock className="size-5 text-[#b14e31]" />
               <div>
-                <h2 className="text-lg font-semibold">最近预约进度</h2>
-                <p className="mt-1 text-sm text-black/56">聊天中的关键动作应和预约流程同步。</p>
+                <h2 className="text-lg font-semibold">{copy.recentBooking}</h2>
+                <p className="mt-1 text-sm text-black/56">{copy.bookingDetail}</p>
               </div>
             </div>
             <div className="mt-5">
-              <BookingTimeline items={bookings.slice(0, 1)} />
+              <BookingTimeline items={bookings.slice(0, 1)} locale={locale} />
             </div>
           </Panel>
 
@@ -128,8 +133,8 @@ export default async function ChatDetailPage({
             <div className="flex items-center gap-3">
               <ShieldCheck className="size-5 text-[#4b7b5b]" />
               <div>
-                <h2 className="text-lg font-semibold">安全提醒</h2>
-                <p className="mt-1 text-sm text-black/56">确认时间地点前，建议先核对宠物健康信息与应急联系人。</p>
+                <h2 className="text-lg font-semibold">{copy.safetyTitle}</h2>
+                <p className="mt-1 text-sm text-black/56">{copy.safetyDetail}</p>
               </div>
             </div>
           </Panel>

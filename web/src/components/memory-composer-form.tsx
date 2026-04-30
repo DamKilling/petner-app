@@ -4,9 +4,11 @@ import type { FormEvent } from "react";
 import { useRef, useState } from "react";
 
 import { addMemory } from "@/app/actions";
+import type { Dictionary } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 
 type MemoryComposerFormProps = {
+  copy: Dictionary["memoryComposer"];
   userID: string;
 };
 
@@ -24,6 +26,7 @@ function isRedirectError(error: unknown) {
 }
 
 async function uploadOwnerFile(
+  copy: Dictionary["memoryComposer"],
   userID: string,
   scope: string,
   entityID: string,
@@ -42,7 +45,7 @@ async function uploadOwnerFile(
   });
 
   if (error) {
-    throw new Error(`媒体上传失败：${error.message}`);
+    throw new Error(`${copy.uploadErrorPrefix}${error.message}`);
   }
 
   return path;
@@ -54,7 +57,7 @@ const fieldClass =
 const fileClass =
   "min-h-12 rounded-2xl border border-black/10 bg-white px-4 py-2 text-sm text-black outline-none transition file:mr-4 file:rounded-full file:border-0 file:bg-[#201a16] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white focus:border-[#f06f4f]/60 focus:ring-4 focus:ring-[#f06f4f]/10";
 
-export function MemoryComposerForm({ userID }: MemoryComposerFormProps) {
+export function MemoryComposerForm({ copy, userID }: MemoryComposerFormProps) {
   const formRef = useRef<HTMLFormElement | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +66,7 @@ export function MemoryComposerForm({ userID }: MemoryComposerFormProps) {
     event.preventDefault();
 
     if (userID === "demo") {
-      setError("请先登录并配置 Supabase 后再上传成长档案。");
+      setError(copy.demoError);
       return;
     }
 
@@ -85,8 +88,8 @@ export function MemoryComposerForm({ userID }: MemoryComposerFormProps) {
       formData.set("memory_id", memoryID);
 
       const [photoPath, audioPath] = await Promise.all([
-        uploadOwnerFile(userID, "memories", memoryID, photoFile),
-        uploadOwnerFile(userID, "memories", memoryID, audioFile),
+        uploadOwnerFile(copy, userID, "memories", memoryID, photoFile),
+        uploadOwnerFile(copy, userID, "memories", memoryID, audioFile),
       ]);
 
       formData.delete("photo");
@@ -110,29 +113,29 @@ export function MemoryComposerForm({ userID }: MemoryComposerFormProps) {
         throw submitError;
       }
 
-      setError(submitError instanceof Error ? submitError.message : "保存失败，请稍后再试。");
+      setError(submitError instanceof Error ? submitError.message : copy.saveError);
       setIsSubmitting(false);
     }
   }
 
   return (
     <>
-      <h2 className="text-2xl font-semibold">新增记忆</h2>
+      <h2 className="text-2xl font-semibold">{copy.title}</h2>
       <form ref={formRef} onSubmit={handleSubmit} className="mt-6 grid gap-4">
         <label className="grid gap-2 text-sm font-medium text-black/70">
-          标题
+          {copy.titleLabel}
           <input className={fieldClass} name="title" required />
         </label>
         <label className="grid gap-2 text-sm font-medium text-black/70">
-          副标题
+          {copy.subtitleLabel}
           <input className={fieldClass} name="subtitle" required />
         </label>
         <label className="grid gap-2 text-sm font-medium text-black/70">
-          日期
+          {copy.dateLabel}
           <input className={fieldClass} defaultValue="2026.04.23" name="date_text" required />
         </label>
         <label className="grid gap-2 text-sm font-medium text-black/70">
-          完整故事
+          {copy.storyLabel}
           <textarea
             className="min-h-28 rounded-2xl border border-black/10 bg-white px-4 py-3 text-base text-black outline-none transition focus:border-[#f06f4f]/60 focus:ring-4 focus:ring-[#f06f4f]/10"
             name="story"
@@ -141,11 +144,11 @@ export function MemoryComposerForm({ userID }: MemoryComposerFormProps) {
         </label>
         <div className="grid gap-4 md:grid-cols-2">
           <label className="grid gap-2 text-sm font-medium text-black/70">
-            装饰图标
+            {copy.ornamentLabel}
             <input className={fieldClass} defaultValue="star" name="ornament" />
           </label>
           <label className="grid gap-2 text-sm font-medium text-black/70">
-            主题色
+            {copy.accentLabel}
             <select className={fieldClass} defaultValue="pine" name="accent">
               <option value="pine">Pine</option>
               <option value="ember">Ember</option>
@@ -155,11 +158,11 @@ export function MemoryComposerForm({ userID }: MemoryComposerFormProps) {
           </label>
         </div>
         <label className="grid gap-2 text-sm font-medium text-black/70">
-          照片
+          {copy.photoLabel}
           <input className={fileClass} name="photo" type="file" accept="image/*" />
         </label>
         <label className="grid gap-2 text-sm font-medium text-black/70">
-          音频
+          {copy.audioLabel}
           <input className={fileClass} name="audio" type="file" accept="audio/*" />
         </label>
 
@@ -174,7 +177,7 @@ export function MemoryComposerForm({ userID }: MemoryComposerFormProps) {
           disabled={isSubmitting}
           type="submit"
         >
-          {isSubmitting ? "正在上传并保存..." : "保存并查看详情"}
+          {isSubmitting ? copy.uploading : copy.submit}
         </button>
       </form>
     </>

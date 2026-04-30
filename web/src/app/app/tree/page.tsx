@@ -3,19 +3,24 @@ import Link from "next/link";
 import { MemoryComposerForm } from "@/components/memory-composer-form";
 import { ButtonLink, EmptyState, PageHeader, Panel } from "@/components/ui";
 import { getCurrentUser, getMemories } from "@/lib/data";
+import { getDictionary } from "@/lib/i18n";
+import { getRequestLocale } from "@/lib/i18n-server";
 import { accentSoftClasses } from "@/lib/theme";
 
 export default async function TreePage() {
+  const locale = await getRequestLocale();
+  const dict = getDictionary(locale);
+  const copy = dict.tree;
   const user = await getCurrentUser();
   const memories = await getMemories(user?.id ?? "demo");
 
   return (
     <div className="grid gap-8">
       <PageHeader
-        eyebrow="Tree"
-        title="宠物成长树"
-        description="把重要照片、音频和成长故事挂在一条可以回看的时间线上。"
-        action={<ButtonLink href="/app/tree/interactive">进入互动圣诞树</ButtonLink>}
+        eyebrow={copy.eyebrow}
+        title={copy.title}
+        description={copy.description}
+        action={<ButtonLink href="/app/tree/interactive">{copy.interactiveCta}</ButtonLink>}
       />
 
       <div className="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
@@ -35,12 +40,12 @@ export default async function TreePage() {
               </Link>
             ))
           ) : (
-            <EmptyState title="还没有成长记忆" detail="新增第一条记录，上传照片或音频，让成长树亮起来。" />
+            <EmptyState title={copy.emptyTitle} detail={copy.emptyDetail} />
           )}
         </section>
 
         <Panel>
-          <MemoryComposerForm userID={user?.id ?? "demo"} />
+          <MemoryComposerForm copy={dict.memoryComposer} userID={user?.id ?? "demo"} />
         </Panel>
       </div>
     </div>
