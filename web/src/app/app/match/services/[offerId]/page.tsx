@@ -1,9 +1,12 @@
 import { notFound } from "next/navigation";
 
-import { createBookingDraft, openServiceChat } from "@/app/actions";
+import { createBookingDraft, deleteServiceOffer, openServiceChat } from "@/app/actions";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { ButtonLink, PageHeader, Panel, SubmitButton } from "@/components/ui";
 import { PetCard, ReviewHighlight, TrustBadge } from "@/components/product-ui";
-import { getReviewSummary, getServiceOfferDetail } from "@/lib/data";
+import { getCurrentUser, getReviewSummary, getServiceOfferDetail } from "@/lib/data";
+import { getDictionary } from "@/lib/i18n";
+import { getRequestLocale } from "@/lib/i18n-server";
 
 export default async function ServiceOfferDetailPage({
   params,
@@ -11,14 +14,32 @@ export default async function ServiceOfferDetailPage({
   params: Promise<{ offerId: string }>;
 }) {
   const { offerId } = await params;
-  const [offer, reviewSummary] = await Promise.all([getServiceOfferDetail(offerId), getReviewSummary()]);
+  const locale = await getRequestLocale();
+  const editorCopy = getDictionary(locale).editor;
+  const [offer, reviewSummary, user] = await Promise.all([
+    getServiceOfferDetail(offerId),
+    getReviewSummary(),
+    getCurrentUser(),
+  ]);
 
   if (!offer) {
     notFound();
   }
+  const canEdit = Boolean(user && offer.provider_id === user.id);
 
   return (
     <div className="grid gap-8">
+      {canEdit ? (
+        <div className="flex justify-end gap-2">
+          <ButtonLink href={`/app/match/services/${offer.id}/edit`}>{editorCopy.edit}</ButtonLink>
+          <form action={deleteServiceOffer}>
+            <input name="offer_id" type="hidden" value={offer.id} />
+            <ConfirmSubmitButton message={editorCopy.confirmDelete}>
+              {editorCopy.deleteServiceOffer}
+            </ConfirmSubmitButton>
+          </form>
+        </div>
+      ) : null}
       <PageHeader
         eyebrow="Service Detail"
         title={offer.title ?? "服务详情"}

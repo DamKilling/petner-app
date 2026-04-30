@@ -1,9 +1,12 @@
 import { notFound } from "next/navigation";
 
-import { createBookingDraft, openServiceChat } from "@/app/actions";
+import { createBookingDraft, deleteServiceRequest, openServiceChat } from "@/app/actions";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { ButtonLink, PageHeader, Panel, SubmitButton } from "@/components/ui";
 import { PetCard, TrustBadge } from "@/components/product-ui";
-import { getServiceRequestDetail } from "@/lib/data";
+import { getCurrentUser, getServiceRequestDetail } from "@/lib/data";
+import { getDictionary } from "@/lib/i18n";
+import { getRequestLocale } from "@/lib/i18n-server";
 
 export default async function ServiceRequestDetailPage({
   params,
@@ -11,14 +14,28 @@ export default async function ServiceRequestDetailPage({
   params: Promise<{ requestId: string }>;
 }) {
   const { requestId } = await params;
-  const request = await getServiceRequestDetail(requestId);
+  const locale = await getRequestLocale();
+  const editorCopy = getDictionary(locale).editor;
+  const [request, user] = await Promise.all([getServiceRequestDetail(requestId), getCurrentUser()]);
 
   if (!request) {
     notFound();
   }
+  const canEdit = Boolean(user && request.requester_id === user.id);
 
   return (
     <div className="grid gap-8">
+      {canEdit ? (
+        <div className="flex justify-end gap-2">
+          <ButtonLink href={`/app/match/requests/${request.id}/edit`}>{editorCopy.edit}</ButtonLink>
+          <form action={deleteServiceRequest}>
+            <input name="request_id" type="hidden" value={request.id} />
+            <ConfirmSubmitButton message={editorCopy.confirmDelete}>
+              {editorCopy.deleteServiceRequest}
+            </ConfirmSubmitButton>
+          </form>
+        </div>
+      ) : null}
       <PageHeader
         eyebrow="Request Detail"
         title={request.title}

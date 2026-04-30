@@ -6,7 +6,6 @@ import {
   Grid2x2,
   MessageCircleMore,
   PawPrint,
-  ShieldCheck,
   TreePine,
   UserRound,
   UsersRound,
@@ -88,7 +87,7 @@ export function AppShell({
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(240,111,79,0.08),transparent_26rem),radial-gradient(circle_at_100%_0%,rgba(155,184,154,0.12),transparent_28rem),linear-gradient(180deg,#fffaf4_0%,#fff9f2_46%,#f7f1e8_100%)]">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-80 border-r border-black/8 bg-[#1f1916] px-6 py-7 text-white lg:flex lg:flex-col">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-80 overflow-y-auto border-r border-black/8 bg-[#1f1916] px-6 py-7 text-white lg:flex lg:flex-col">
         <Link href="/app" className="flex items-center gap-3">
           <span className="flex size-11 items-center justify-center overflow-hidden rounded-[1.1rem] border border-white/12 bg-white shadow-[0_16px_30px_rgba(255,255,255,0.10)]">
             <Image
@@ -129,38 +128,11 @@ export function AppShell({
           })}
         </nav>
 
-        <div className="mt-8 rounded-[1.6rem] border border-white/10 bg-white/8 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold">{profile.display_name}</p>
-              <p className="mt-1 text-xs text-white/52">{profile.city}</p>
-            </div>
-            <ShieldCheck className="size-4 text-[#e7c57a]" />
-          </div>
-          <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-2xl bg-white/10 px-2 py-3">
-              <p className="text-base font-semibold">{profile.rating_avg?.toFixed(1) ?? "4.8"}</p>
-              <p className="mt-1 text-[11px] text-white/52">{copy.common.rating}</p>
-            </div>
-            <div className="rounded-2xl bg-white/10 px-2 py-3">
-              <p className="text-base font-semibold">{profile.completed_booking_count ?? 8}</p>
-              <p className="mt-1 text-[11px] text-white/52">{copy.common.completed}</p>
-            </div>
-            <div className="rounded-2xl bg-white/10 px-2 py-3">
-              <p className="text-base font-semibold">{profile.repeat_booking_count ?? 3}</p>
-              <p className="mt-1 text-[11px] text-white/52">{copy.common.repeat}</p>
-            </div>
-          </div>
-          <p className="mt-4 text-xs leading-5 text-white/48">
-            {isDemo ? copy.common.demoMode : profile.response_time_label ?? copy.common.usuallyReplies}
-          </p>
-        </div>
-
-        <div className="mt-4">
+        <div className="mt-8">
           <LanguageSwitcher locale={locale} inverted />
         </div>
 
-        <div className="mt-auto space-y-3">
+        <div className="mt-4 space-y-3">
           <Link
             href="/app/chats"
             className="flex items-center justify-between rounded-[1.25rem] border border-white/10 bg-white/8 px-4 py-3 text-sm font-medium text-white/78 hover:bg-white/10"

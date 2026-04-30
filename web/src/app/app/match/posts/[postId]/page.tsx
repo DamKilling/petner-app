@@ -1,11 +1,14 @@
 import { MessageCircleMore, ShieldCheck } from "lucide-react";
 import { notFound } from "next/navigation";
 
-import { addComment, openChat, toggleLike } from "@/app/actions";
+import { addComment, deletePost, openChat, toggleLike } from "@/app/actions";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { TrustBadge } from "@/components/product-ui";
 import { ButtonLink, PageHeader, Panel, SubmitButton, TextArea } from "@/components/ui";
 import { getCurrentUser, getPet, getPost } from "@/lib/data";
+import { getDictionary } from "@/lib/i18n";
+import { getRequestLocale } from "@/lib/i18n-server";
 import { formatDate } from "@/lib/utils";
 
 export default async function PostDetailPage({
@@ -14,6 +17,8 @@ export default async function PostDetailPage({
   params: Promise<{ postId: string }>;
 }) {
   const { postId } = await params;
+  const locale = await getRequestLocale();
+  const editorCopy = getDictionary(locale).editor;
   const user = await getCurrentUser();
   const data = await getPost(postId, user?.id ?? "demo");
 
@@ -22,10 +27,20 @@ export default async function PostDetailPage({
   }
 
   const relatedPet = data.post.related_pet_id ? await getPet(data.post.related_pet_id) : null;
+  const canEdit = Boolean(user && data.post.author_id === user.id);
 
   return (
     <div className="grid gap-8">
       <RealtimeRefresh filter={`post_id=eq.${postId}`} table="post_comments" />
+      {canEdit ? (
+        <div className="flex justify-end gap-2">
+          <ButtonLink href={`/app/match/posts/${data.post.id}/edit`}>{editorCopy.edit}</ButtonLink>
+          <form action={deletePost}>
+            <input name="post_id" type="hidden" value={data.post.id} />
+            <ConfirmSubmitButton message={editorCopy.confirmDelete}>{editorCopy.deletePost}</ConfirmSubmitButton>
+          </form>
+        </div>
+      ) : null}
       <PageHeader
         action={<ButtonLink href="/app/match?tab=community" variant="secondary">返回社区广场</ButtonLink>}
         eyebrow="Post Detail"

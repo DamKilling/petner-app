@@ -109,6 +109,61 @@ async function uploadOwnerFile(
   return path;
 }
 
+async function deleteOwnerFiles(supabase: SupabaseServerClient, paths: Array<string | null | undefined>) {
+  const cleanPaths = [...new Set(paths.filter((path): path is string => Boolean(path)))];
+
+  if (!cleanPaths.length) {
+    return;
+  }
+
+  const { error } = await supabase.storage.from("petlife-media").remove(cleanPaths);
+
+  if (error) {
+    throw new Error(`Media file cleanup failed: ${error.message}`);
+  }
+}
+
+async function getOwnedPetName(supabase: SupabaseServerClient, userID: string, petID: string | null) {
+  if (!petID) {
+    return null;
+  }
+
+  const { data: pet, error } = await supabase
+    .from("pets")
+    .select("name")
+    .eq("id", petID)
+    .eq("owner_id", userID)
+    .maybeSingle<{ name: string }>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!pet) {
+    throw new Error("You can only attach your own pet profile.");
+  }
+
+  return pet.name;
+}
+
+async function countBookingsForSource(
+  supabase: SupabaseServerClient,
+  sourceKind: "offer" | "request",
+  sourceID: string,
+) {
+  const column = sourceKind === "offer" ? "service_offer_id" : "service_request_id";
+  const { count, error } = await supabase
+    .from("bookings")
+    .select("id", { count: "exact", head: true })
+    .eq(column, sourceID);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return count ?? 0;
+}
+
 async function ensureProfile(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userID: string,
@@ -363,6 +418,103 @@ export async function addMemory(formData: FormData) {
   redirect(`/app/tree/${memoryID}`);
 }
 
+export async function updateMemory(formData: FormData) {
+  const { supabase, user } = await getAuthenticatedSupabase();
+  const memoryID = text(formData, "memory_id");
+
+  const { data: existing, error: existingError } = await supabase
+    .from("memories")
+    .select("id,owner_id,photo_path,audio_path,audio_display_name")
+    .eq("id", memoryID)
+    .eq("owner_id", user.id)
+    .maybeSingle<{
+      id: string;
+      owner_id: string;
+      photo_path: string | null;
+      audio_path: string | null;
+      audio_display_name: string | null;
+    }>();
+
+  if (existingError) {
+    throw new Error(existingError.message);
+  }
+
+  if (!existing) {
+    throw new Error("Memory not found or you do not have permission to edit it.");
+  }
+
+  const uploadedPhotoPath = await uploadOwnerFile(user.id, "memories", memoryID, formData.get("photo"));
+  const audioFile = formData.get("audio");
+  const uploadedAudioPath = await uploadOwnerFile(user.id, "memories", memoryID, audioFile);
+  const nextPhotoPath = uploadedPhotoPath ?? existing.photo_path;
+  const nextAudioPath = uploadedAudioPath ?? existing.audio_path;
+  const uploadedAudioDisplayName =
+    audioFile instanceof File && audioFile.size > 0 ? audioFile.name : existing.audio_display_name;
+
+  const { error } = await supabase
+    .from("memories")
+    .update({
+      title: text(formData, "title"),
+      subtitle: text(formData, "subtitle"),
+      date_text: text(formData, "date_text", "2026.04.23"),
+      story: text(formData, "story"),
+      ornament: text(formData, "ornament", "star"),
+      accent: text(formData, "accent", "pine"),
+      photo_path: nextPhotoPath,
+      audio_path: nextAudioPath,
+      audio_display_name: uploadedAudioDisplayName,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", memoryID)
+    .eq("owner_id", user.id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  await deleteOwnerFiles(supabase, [
+    uploadedPhotoPath && existing.photo_path !== uploadedPhotoPath ? existing.photo_path : null,
+    uploadedAudioPath && existing.audio_path !== uploadedAudioPath ? existing.audio_path : null,
+  ]);
+
+  revalidatePath("/app/tree");
+  revalidatePath("/app/tree/interactive");
+  revalidatePath(`/app/tree/${memoryID}`);
+  redirect(`/app/tree/${memoryID}`);
+}
+
+export async function deleteMemory(formData: FormData) {
+  const { supabase, user } = await getAuthenticatedSupabase();
+  const memoryID = text(formData, "memory_id");
+
+  const { data: existing, error: existingError } = await supabase
+    .from("memories")
+    .select("id,photo_path,audio_path")
+    .eq("id", memoryID)
+    .eq("owner_id", user.id)
+    .maybeSingle<{ id: string; photo_path: string | null; audio_path: string | null }>();
+
+  if (existingError) {
+    throw new Error(existingError.message);
+  }
+
+  if (!existing) {
+    throw new Error("Memory not found or you do not have permission to delete it.");
+  }
+
+  const { error } = await supabase.from("memories").delete().eq("id", memoryID).eq("owner_id", user.id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  await deleteOwnerFiles(supabase, [existing.photo_path, existing.audio_path]);
+
+  revalidatePath("/app/tree");
+  revalidatePath("/app/tree/interactive");
+  redirect("/app/tree");
+}
+
 export async function addVideo(formData: FormData) {
   const { supabase, user } = await getAuthenticatedSupabase();
   const videoID = crypto.randomUUID();
@@ -426,6 +578,79 @@ export async function createPost(formData: FormData) {
 
   revalidatePath("/app/match");
   redirect(`/app/match/posts/${postID}`);
+}
+
+export async function updatePost(formData: FormData) {
+  const { supabase, user } = await getAuthenticatedSupabase();
+  const postID = text(formData, "post_id");
+  const petID = text(formData, "related_pet_id") || null;
+  const ownedPetName = await getOwnedPetName(supabase, user.id, petID);
+
+  const { data: existing, error: existingError } = await supabase
+    .from("feed_posts")
+    .select("id")
+    .eq("id", postID)
+    .eq("author_id", user.id)
+    .maybeSingle<{ id: string }>();
+
+  if (existingError) {
+    throw new Error(existingError.message);
+  }
+
+  if (!existing) {
+    throw new Error("Post not found or you do not have permission to edit it.");
+  }
+
+  const { error } = await supabase
+    .from("feed_posts")
+    .update({
+      related_pet_id: petID,
+      pet_name: ownedPetName ?? text(formData, "pet_name", "我的宠物"),
+      topic: text(formData, "topic", "同城交友"),
+      city: text(formData, "city", "上海"),
+      content: text(formData, "content"),
+      tags: splitTags(formData.get("tags")),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", postID)
+    .eq("author_id", user.id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/app/match");
+  revalidatePath(`/app/match/posts/${postID}`);
+  redirect(`/app/match/posts/${postID}`);
+}
+
+export async function deletePost(formData: FormData) {
+  const { supabase, user } = await getAuthenticatedSupabase();
+  const postID = text(formData, "post_id");
+
+  const { data: existing, error: existingError } = await supabase
+    .from("feed_posts")
+    .select("id")
+    .eq("id", postID)
+    .eq("author_id", user.id)
+    .maybeSingle<{ id: string }>();
+
+  if (existingError) {
+    throw new Error(existingError.message);
+  }
+
+  if (!existing) {
+    throw new Error("Post not found or you do not have permission to delete it.");
+  }
+
+  const { error } = await supabase.from("feed_posts").delete().eq("id", postID).eq("author_id", user.id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/app/match");
+  redirect("/app/match?tab=community");
 }
 
 export async function toggleLike(formData: FormData) {
@@ -571,6 +796,90 @@ export async function updateServiceOfferStatus(formData: FormData) {
   revalidatePath(`/app/match/services/${offerID}`);
 }
 
+export async function updateServiceOffer(formData: FormData) {
+  const { supabase, user } = await getAuthenticatedSupabase();
+  const offerID = text(formData, "offer_id");
+  const relatedPetID = text(formData, "related_pet_id") || null;
+  await getOwnedPetName(supabase, user.id, relatedPetID);
+
+  const { data: existing, error: existingError } = await supabase
+    .from("service_offers")
+    .select("id")
+    .eq("id", offerID)
+    .eq("provider_id", user.id)
+    .maybeSingle<{ id: string }>();
+
+  if (existingError) {
+    throw new Error(existingError.message);
+  }
+
+  if (!existing) {
+    throw new Error("Service offer not found or you do not have permission to edit it.");
+  }
+
+  const { error } = await supabase
+    .from("service_offers")
+    .update({
+      related_pet_id: relatedPetID,
+      title: text(formData, "title"),
+      intro: text(formData, "intro"),
+      service_types: splitTags(formData.get("service_types")),
+      service_area: text(formData, "service_area"),
+      price_mode: text(formData, "price_mode", "先聊后定"),
+      availability_summary: text(formData, "availability_summary", "待沟通"),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", offerID)
+    .eq("provider_id", user.id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/app/match");
+  revalidatePath(`/app/match/services/${offerID}`);
+  redirect(`/app/match/services/${offerID}`);
+}
+
+export async function deleteServiceOffer(formData: FormData) {
+  const { supabase, user } = await getAuthenticatedSupabase();
+  const offerID = text(formData, "offer_id");
+
+  const { data: existing, error: existingError } = await supabase
+    .from("service_offers")
+    .select("id")
+    .eq("id", offerID)
+    .eq("provider_id", user.id)
+    .maybeSingle<{ id: string }>();
+
+  if (existingError) {
+    throw new Error(existingError.message);
+  }
+
+  if (!existing) {
+    throw new Error("Service offer not found or you do not have permission to update it.");
+  }
+
+  const bookingCount = await countBookingsForSource(supabase, "offer", offerID);
+  const result =
+    bookingCount > 0
+      ? await supabase
+          .from("service_offers")
+          .update({ status: "paused", updated_at: new Date().toISOString() })
+          .eq("id", offerID)
+          .eq("provider_id", user.id)
+      : await supabase.from("service_offers").delete().eq("id", offerID).eq("provider_id", user.id);
+
+  if (result.error) {
+    throw new Error(result.error.message);
+  }
+
+  revalidatePath("/app/match");
+  revalidatePath("/app/profile");
+  revalidatePath(`/app/match/services/${offerID}`);
+  redirect("/app/match?tab=services");
+}
+
 export async function createServiceRequest(formData: FormData) {
   const { supabase, user } = await getAuthenticatedSupabase();
   const requestID = crypto.randomUUID();
@@ -611,6 +920,90 @@ export async function updateServiceRequestStatus(formData: FormData) {
 
   revalidatePath("/app/match");
   revalidatePath(`/app/match/requests/${requestID}`);
+}
+
+export async function updateServiceRequest(formData: FormData) {
+  const { supabase, user } = await getAuthenticatedSupabase();
+  const requestID = text(formData, "request_id");
+  const relatedPetID = text(formData, "related_pet_id") || null;
+  await getOwnedPetName(supabase, user.id, relatedPetID);
+
+  const { data: existing, error: existingError } = await supabase
+    .from("service_requests")
+    .select("id")
+    .eq("id", requestID)
+    .eq("requester_id", user.id)
+    .maybeSingle<{ id: string }>();
+
+  if (existingError) {
+    throw new Error(existingError.message);
+  }
+
+  if (!existing) {
+    throw new Error("Service request not found or you do not have permission to edit it.");
+  }
+
+  const { error } = await supabase
+    .from("service_requests")
+    .update({
+      related_pet_id: relatedPetID,
+      title: text(formData, "title"),
+      detail: text(formData, "detail"),
+      request_type: text(formData, "request_type", "宠物陪伴"),
+      city: text(formData, "city", "上海"),
+      preferred_time_summary: text(formData, "preferred_time_summary", "待沟通"),
+      budget_summary: text(formData, "budget_summary", "先聊后定"),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", requestID)
+    .eq("requester_id", user.id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/app/match");
+  revalidatePath(`/app/match/requests/${requestID}`);
+  redirect(`/app/match/requests/${requestID}`);
+}
+
+export async function deleteServiceRequest(formData: FormData) {
+  const { supabase, user } = await getAuthenticatedSupabase();
+  const requestID = text(formData, "request_id");
+
+  const { data: existing, error: existingError } = await supabase
+    .from("service_requests")
+    .select("id")
+    .eq("id", requestID)
+    .eq("requester_id", user.id)
+    .maybeSingle<{ id: string }>();
+
+  if (existingError) {
+    throw new Error(existingError.message);
+  }
+
+  if (!existing) {
+    throw new Error("Service request not found or you do not have permission to update it.");
+  }
+
+  const bookingCount = await countBookingsForSource(supabase, "request", requestID);
+  const result =
+    bookingCount > 0
+      ? await supabase
+          .from("service_requests")
+          .update({ status: "closed", updated_at: new Date().toISOString() })
+          .eq("id", requestID)
+          .eq("requester_id", user.id)
+      : await supabase.from("service_requests").delete().eq("id", requestID).eq("requester_id", user.id);
+
+  if (result.error) {
+    throw new Error(result.error.message);
+  }
+
+  revalidatePath("/app/match");
+  revalidatePath("/app/profile");
+  revalidatePath(`/app/match/requests/${requestID}`);
+  redirect("/app/match?tab=services&surface=requests");
 }
 
 export async function openServiceChat(formData: FormData) {

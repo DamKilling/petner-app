@@ -566,10 +566,12 @@ export async function getServiceBoardData({
     return {
       surface,
       offers: demoServiceOffers
+        .filter((offer) => (offer.status ?? "active") === "active")
         .filter((offer) => !serviceType || offer.service_types.includes(serviceType))
         .filter((offer) => !city || offer.service_area.includes(city))
         .map((offer) => normalizeOffer(offer, demoProfile, demoPets.find((pet) => pet.id === offer.related_pet_id))),
       requests: demoServiceRequests
+        .filter((request) => request.status === "open")
         .filter((request) => !serviceType || request.request_type === serviceType)
         .filter((request) => !city || request.city.includes(city))
         .map((request) => normalizeRequest(request, demoProfile, demoPets.find((pet) => pet.id === request.related_pet_id))),
@@ -578,8 +580,16 @@ export async function getServiceBoardData({
 
   void userID;
   const supabase = await createClient();
-  let offerQuery = supabase.from("service_offers").select("*").order("created_at", { ascending: false });
-  let requestQuery = supabase.from("service_requests").select("*").order("created_at", { ascending: false });
+  let offerQuery = supabase
+    .from("service_offers")
+    .select("*")
+    .eq("status", "active")
+    .order("created_at", { ascending: false });
+  let requestQuery = supabase
+    .from("service_requests")
+    .select("*")
+    .eq("status", "open")
+    .order("created_at", { ascending: false });
 
   if (serviceType) {
     offerQuery = offerQuery.contains("service_types", [serviceType]);
