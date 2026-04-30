@@ -12,6 +12,7 @@ import gsap from "gsap";
 
 import type { GestureRecognizer } from "@mediapipe/tasks-vision";
 import type { InteractiveMemory } from "@/lib/data";
+import type { Dictionary } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 type TreeMode = "TREE" | "SCATTER" | "FOCUS";
@@ -46,11 +47,6 @@ type SnowDatum = {
   phase: number;
 };
 
-const MODE_LABELS: Record<TreeMode, string> = {
-  TREE: "聚合成树",
-  SCATTER: "散开照片",
-  FOCUS: "聚焦回忆",
-};
 
 const DESKTOP_MAGIC_DUST_COUNT = 900;
 const MOBILE_MAGIC_DUST_COUNT = 520;
@@ -75,9 +71,11 @@ function treeRadiusAt(y: number) {
 }
 
 export function InteractiveChristmasTree({
+  copy,
   memories,
   musicSrc,
 }: {
+  copy: Dictionary["interactiveTree"];
   memories: InteractiveMemory[];
   musicSrc: string;
 }) {
@@ -100,7 +98,7 @@ export function InteractiveChristmasTree({
   const [isGestureEnabled, setIsGestureEnabled] = useState(false);
   const [isGestureLoading, setIsGestureLoading] = useState(false);
   const [photoCount, setPhotoCount] = useState(memories.length);
-  const [status, setStatus] = useState("按钮可用，点击后再请求摄像头权限。");
+  const [status, setStatus] = useState<string>(copy.statusReady);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [isPerformanceMode, setIsPerformanceMode] = useState(false);
@@ -128,7 +126,7 @@ export function InteractiveChristmasTree({
       })
       .catch(() => {
         setIsMusicPlaying(false);
-        setStatus("音乐未能播放，但互动树可以继续使用。");
+        setStatus(copy.musicFailed);
       });
   }
 
@@ -167,7 +165,7 @@ export function InteractiveChristmasTree({
   function applyMode(nextMode: TreeMode, source = "button") {
     modeRef.current = nextMode;
     startTransition(() => setMode(nextMode));
-    setStatus(source === "gesture" ? `手势识别：${MODE_LABELS[nextMode]}` : `已切换：${MODE_LABELS[nextMode]}`);
+    setStatus(source === "gesture" ? `${copy.gestureRecognized}${copy.modes[nextMode]}` : `${copy.modeChanged}${copy.modes[nextMode]}`);
     playMusic();
   }
 
@@ -212,14 +210,14 @@ export function InteractiveChristmasTree({
     }
 
     if (!navigator.mediaDevices?.getUserMedia) {
-      setCameraError("当前浏览器不支持摄像头手势，按钮控制仍可使用。");
+      setCameraError(copy.unsupportedCamera);
       return;
     }
 
     setCameraError(null);
     setIsGestureLoading(true);
     setPerformanceMode(true);
-    setStatus("正在加载手势模型和摄像头...");
+    setStatus(copy.loadingGesture);
 
     try {
       if (!recognizerRef.current) {
@@ -253,16 +251,16 @@ export function InteractiveChristmasTree({
 
       gestureEnabledRef.current = true;
       setIsGestureEnabled(true);
-      setStatus("手势已开启，并自动进入性能模式：握拳成树，张掌散开，V 手势聚焦。");
+      setStatus(copy.gestureEnabled);
       playMusic();
     } catch (error) {
       stopCamera();
       setCameraError(
         error instanceof Error
           ? `${error.name}: ${error.message}`
-          : "摄像头或手势模型初始化失败。",
+          : copy.gestureInitFailed,
       );
-      setStatus("手势未开启，按钮控制仍可使用。");
+      setStatus(copy.gestureFallback);
     } finally {
       setIsGestureLoading(false);
     }
@@ -271,7 +269,7 @@ export function InteractiveChristmasTree({
   function toggleGestures() {
     if (isGestureEnabled) {
       stopCamera();
-      setStatus("手势已关闭，摄像头已释放。");
+      setStatus(copy.gestureClosed);
       return;
     }
 
@@ -690,7 +688,7 @@ export function InteractiveChristmasTree({
         },
         undefined,
         () => {
-          setStatus("有一张照片加载失败，互动树已跳过它。");
+          setStatus(copy.photoLoadFailed);
         },
       );
     }
@@ -723,8 +721,8 @@ export function InteractiveChristmasTree({
       } catch (error) {
         if (!hasReportedRecognitionError) {
           hasReportedRecognitionError = true;
-          setCameraError(error instanceof Error ? `${error.name}: ${error.message}` : "手势识别运行失败。");
-          setStatus("手势识别已暂停，按钮控制仍可使用。");
+          setCameraError(error instanceof Error ? `${error.name}: ${error.message}` : copy.gestureRuntimeFailed);
+          setStatus(copy.gesturePaused);
         }
 
         stopCamera();
@@ -863,7 +861,7 @@ export function InteractiveChristmasTree({
       addPhotoRef.current = () => undefined;
       setRenderQualityRef.current = () => undefined;
     };
-  }, [memories, stopCamera]);
+  }, [copy.gesturePaused, copy.gestureRuntimeFailed, copy.photoLoadFailed, memories, stopCamera]);
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-[#030605] text-white">
@@ -884,23 +882,23 @@ export function InteractiveChristmasTree({
           <Link
             href="/app/tree"
             className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:-translate-y-0.5 hover:bg-white/18 md:h-11 md:w-11"
-            aria-label="返回成长树"
+            aria-label={copy.backToTree}
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[#f7c96b] md:text-xs md:tracking-[0.32em]">
-              Interactive Tree
+              {copy.eyebrow}
             </p>
-            <h1 className="text-xl font-semibold tracking-tight md:text-4xl">沉浸式互动圣诞树</h1>
+            <h1 className="text-xl font-semibold tracking-tight md:text-4xl">{copy.title}</h1>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs text-white/70">
-          <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5">{MODE_LABELS[mode]}</span>
-          <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5">{photoCount} 张照片</span>
+          <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5">{copy.modes[mode]}</span>
+          <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1.5">{photoCount} {copy.photoCount}</span>
           {isPerformanceMode ? (
             <span className="rounded-full border border-[#f7c96b]/20 bg-[#f7c96b]/15 px-3 py-1.5 text-[#f7c96b]">
-              性能模式
+              {copy.performanceMode}
             </span>
           ) : null}
         </div>
@@ -911,19 +909,19 @@ export function InteractiveChristmasTree({
           <Link
             href="/app/tree"
             className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white"
-            aria-label="返回成长树"
+            aria-label={copy.backToTree}
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            <span className="truncate rounded-full bg-white/10 px-2.5 py-1">{MODE_LABELS[mode]}</span>
-            <span className="shrink-0 rounded-full bg-white/10 px-2.5 py-1">{photoCount} 张照片</span>
+            <span className="truncate rounded-full bg-white/10 px-2.5 py-1">{copy.modes[mode]}</span>
+            <span className="shrink-0 rounded-full bg-white/10 px-2.5 py-1">{photoCount} {copy.photoCount}</span>
           </div>
           <button
             type="button"
             onClick={() => setIsMobileChromeCollapsed(false)}
             className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-[#f7c96b]/25 bg-[#f7c96b]/18 text-[#f7c96b]"
-            aria-label="展开控制面板"
+            aria-label={copy.expandControls}
           >
             <ChevronDown className="h-4 w-4" />
           </button>
@@ -939,7 +937,7 @@ export function InteractiveChristmasTree({
             ? "bottom-[max(1rem,env(safe-area-inset-bottom))]"
             : "bottom-[calc(env(safe-area-inset-bottom)+54svh)]",
         )}
-        aria-label={isMobileChromeCollapsed ? "展开控制面板" : "收起控制面板"}
+        aria-label={isMobileChromeCollapsed ? copy.expandControls : copy.collapseControls}
       >
         {isMobileChromeCollapsed ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
       </button>
@@ -955,7 +953,7 @@ export function InteractiveChristmasTree({
             <Sparkles className="h-4 w-4 md:h-5 md:w-5" />
           </div>
           <div>
-            <h2 className="text-base font-semibold md:text-lg">成长记忆互动模式</h2>
+            <h2 className="text-base font-semibold md:text-lg">{copy.panelTitle}</h2>
             <p className="mt-1 text-xs leading-5 text-white/62 md:text-sm md:leading-6">{status}</p>
           </div>
         </div>
@@ -969,8 +967,8 @@ export function InteractiveChristmasTree({
         {!photoCount ? (
           <div className="mt-4 rounded-[1.2rem] border border-white/10 bg-white/8 p-4 text-center md:hidden">
             <Images className="mx-auto h-7 w-7 text-[#f7c96b]" />
-            <h2 className="mt-2 text-lg font-semibold">还没有可展示的照片</h2>
-            <p className="mt-2 text-xs leading-5 text-white/58">先新增带照片的记忆，或临时上传几张图片试玩。</p>
+            <h2 className="mt-2 text-lg font-semibold">{copy.emptyTitle}</h2>
+            <p className="mt-2 text-xs leading-5 text-white/58">{copy.emptyDetail}</p>
           </div>
         ) : null}
 
@@ -987,7 +985,7 @@ export function InteractiveChristmasTree({
                   : "border-white/10 bg-white/10 text-white hover:bg-white/16",
               )}
             >
-              {MODE_LABELS[item]}
+              {copy.modes[item]}
             </button>
           ))}
         </div>
@@ -1000,7 +998,7 @@ export function InteractiveChristmasTree({
             className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-3 text-xs font-semibold transition hover:-translate-y-0.5 hover:bg-white/16 disabled:cursor-not-allowed disabled:opacity-60 md:h-12 md:px-4 md:text-sm"
           >
             {isGestureEnabled ? <Camera className="h-4 w-4" /> : <Hand className="h-4 w-4" />}
-            {isGestureEnabled ? "关闭手势" : isGestureLoading ? "加载中..." : "启用手势"}
+            {isGestureEnabled ? copy.closeGesture : isGestureLoading ? copy.loading : copy.enableGesture}
           </button>
           <button
             type="button"
@@ -1008,7 +1006,7 @@ export function InteractiveChristmasTree({
             className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-3 text-xs font-semibold transition hover:-translate-y-0.5 hover:bg-white/16 md:h-12 md:px-4 md:text-sm"
           >
             <Upload className="h-4 w-4" />
-            临时上传
+            {copy.tempUpload}
           </button>
         </div>
 
@@ -1019,25 +1017,25 @@ export function InteractiveChristmasTree({
             className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-transparent px-3 text-xs font-semibold text-white/80 transition hover:bg-white/10 md:h-11 md:px-4 md:text-sm"
           >
             {isMusicPlaying ? <Pause className="h-4 w-4" /> : <Music className="h-4 w-4" />}
-            {isMusicPlaying ? "暂停音乐" : "播放音乐"}
+            {isMusicPlaying ? copy.pauseMusic : copy.playMusic}
           </button>
           <div className="inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-transparent px-3 text-xs text-white/60 md:h-11 md:px-4 md:text-sm">
             <Images className="h-4 w-4" />
-            刷新不保存临时图
+            {copy.temporaryNotice}
           </div>
         </div>
 
         <p className="mt-4 text-[11px] leading-5 text-white/45 md:text-xs">
-          手势建议在桌面 Chrome/Edge 使用。第一版只读取已有成长照片和本地临时上传，不会把临时图片写回 Supabase。
+          {copy.usageNote}
         </p>
       </aside>
 
       <div className="absolute left-4 top-[8.5rem] z-10 hidden max-w-[18rem] rounded-[1.5rem] border border-white/10 bg-black/20 p-4 text-sm leading-6 text-white/58 backdrop-blur-xl md:block">
         <div className="mb-2 inline-flex items-center gap-2 text-white">
           <TreePine className="h-4 w-4 text-[#f7c96b]" />
-          <span className="font-semibold">手势映射</span>
+          <span className="font-semibold">{copy.gestureMapTitle}</span>
         </div>
-        <p>握拳：聚合成树。张开手掌：照片散开。V 手势或点赞：聚焦回忆。</p>
+        <p>{copy.gestureMapDetail}</p>
       </div>
 
       {isGestureEnabled ? (
@@ -1054,8 +1052,8 @@ export function InteractiveChristmasTree({
       {!photoCount ? (
         <div className="pointer-events-none absolute inset-x-6 top-1/2 z-10 mx-auto hidden max-w-sm -translate-y-1/2 rounded-[2rem] border border-white/10 bg-black/35 p-6 text-center backdrop-blur-xl md:block">
           <Images className="mx-auto h-8 w-8 text-[#f7c96b]" />
-          <h2 className="mt-3 text-xl font-semibold">还没有可展示的照片</h2>
-          <p className="mt-2 text-sm leading-6 text-white/60">可以先在成长树新增带照片的记忆，或在这里临时上传几张图片试玩。</p>
+          <h2 className="mt-3 text-xl font-semibold">{copy.emptyTitle}</h2>
+          <p className="mt-2 text-sm leading-6 text-white/60">{copy.emptyDetail}</p>
         </div>
       ) : null}
 
