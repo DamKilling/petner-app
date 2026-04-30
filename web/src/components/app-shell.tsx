@@ -11,6 +11,7 @@ import {
   UserRound,
   UsersRound,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
@@ -89,8 +90,14 @@ export function AppShell({
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(240,111,79,0.08),transparent_26rem),radial-gradient(circle_at_100%_0%,rgba(155,184,154,0.12),transparent_28rem),linear-gradient(180deg,#fffaf4_0%,#fff9f2_46%,#f7f1e8_100%)]">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-80 border-r border-black/8 bg-[#1f1916] px-6 py-7 text-white lg:flex lg:flex-col">
         <Link href="/app" className="flex items-center gap-3">
-          <span className="flex size-11 items-center justify-center rounded-[1.1rem] bg-[#f06f4f] shadow-[0_16px_30px_rgba(240,111,79,0.24)]">
-            <PawPrint className="size-5" />
+          <span className="flex size-11 items-center justify-center overflow-hidden rounded-[1.1rem] border border-white/12 bg-white shadow-[0_16px_30px_rgba(255,255,255,0.10)]">
+            <Image
+              alt=""
+              className="size-full object-contain p-1"
+              height={44}
+              src="/brand/petlife-cat-icon.jpg"
+              width={44}
+            />
           </span>
           <div>
             <p className="text-lg font-semibold tracking-tight">PetLife</p>
@@ -181,8 +188,14 @@ export function AppShell({
       <header className="sticky top-0 z-30 border-b border-black/8 bg-[#fffaf2]/88 px-4 py-3 backdrop-blur lg:hidden">
         <div className="flex items-center justify-between gap-3">
           <Link href="/app" className="flex items-center gap-2">
-            <span className="flex size-9 items-center justify-center rounded-2xl bg-[#f06f4f] text-white">
-              <PawPrint className="size-4" />
+            <span className="flex size-9 items-center justify-center overflow-hidden rounded-2xl border border-black/10 bg-white">
+              <Image
+                alt=""
+                className="size-full object-contain p-1"
+                height={36}
+                src="/brand/petlife-cat-icon.jpg"
+                width={36}
+              />
             </span>
             <div>
               <p className="text-base font-semibold">PetLife</p>

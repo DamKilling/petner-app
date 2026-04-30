@@ -18,6 +18,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "PetLife",
   description: "Pet social, companionship, and services platform.",
+  icons: {
+    icon: "/brand/petlife-cat-icon.jpg",
+    apple: "/brand/petlife-cat-icon.jpg",
+  },
 };
 
 export default async function RootLayout({

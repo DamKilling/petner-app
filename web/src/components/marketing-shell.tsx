@@ -1,5 +1,5 @@
-import { PawPrint } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import type { ReactNode } from "react";
 
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -20,8 +20,14 @@ export async function MarketingShell({
       <header className="sticky top-0 z-30 border-b border-black/8 bg-[#fffaf2]/88 backdrop-blur">
         <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-4 px-4 py-4 md:px-6">
           <Link href="/" className="flex items-center gap-3">
-            <span className="flex size-10 items-center justify-center rounded-[1rem] bg-[#f06f4f] text-white shadow-[0_14px_28px_rgba(240,111,79,0.22)]">
-              <PawPrint className="size-4" />
+            <span className="flex size-10 items-center justify-center overflow-hidden rounded-[1rem] border border-black/10 bg-white shadow-[0_14px_28px_rgba(47,35,22,0.10)]">
+              <Image
+                alt=""
+                className="size-full object-contain p-1"
+                height={40}
+                src="/brand/petlife-cat-icon.jpg"
+                width={40}
+              />
             </span>
             <div>
               <p className="text-base font-semibold tracking-tight">PetLife</p>
