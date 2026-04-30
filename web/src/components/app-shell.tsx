@@ -66,11 +66,13 @@ export function AppShell({
   profile,
   locale,
   isDemo = false,
+  unreadNotificationCount = 0,
 }: {
   children: ReactNode;
   profile: Profile;
   locale: Locale;
   isDemo?: boolean;
+  unreadNotificationCount?: number;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -160,7 +162,11 @@ export function AppShell({
               <BellDot className="size-4" />
               {copy.shell.notifications}
             </span>
-            <span className="rounded-full bg-[#f06f4f] px-2 py-0.5 text-[11px] font-semibold text-white">1</span>
+            {unreadNotificationCount ? (
+              <span className="rounded-full bg-[#f06f4f] px-2 py-0.5 text-[11px] font-semibold text-white">
+                {unreadNotificationCount}
+              </span>
+            ) : null}
           </Link>
           {!isDemo ? (
             <form action={signOut}>
@@ -209,12 +215,15 @@ export function AppShell({
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center gap-1 rounded-[1rem] px-2 py-2 text-[11px] font-medium",
+                "relative flex flex-col items-center gap-1 rounded-[1rem] px-2 py-2 text-[11px] font-medium",
                 active ? "bg-[#f06f4f]/12 text-[#b54a2f]" : "text-black/54",
               )}
             >
               <Icon className="size-4" />
               {item.label}
+              {item.key === "messages" && unreadNotificationCount ? (
+                <span className="absolute right-4 top-1.5 size-2 rounded-full bg-[#f06f4f]" />
+              ) : null}
             </Link>
           );
         })}

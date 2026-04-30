@@ -2,9 +2,10 @@ import { CalendarClock, CheckCircle2, Clock3, MapPin, MessageCircle, ShieldCheck
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { markNotificationRead, openNotification } from "@/app/actions";
 import { getDictionary, type Locale } from "@/lib/i18n";
 import { accentSoftClasses, trustToneClasses } from "@/lib/theme";
-import type { AppNotification, Booking, Pet, ReviewSummary, ServiceOffer, ServiceRequest } from "@/lib/types";
+import type { AppNotification, AppNotificationType, Booking, Pet, ReviewSummary, ServiceOffer, ServiceRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type Tone = keyof typeof trustToneClasses;
@@ -379,7 +380,89 @@ export function BookingTimeline({ items, locale = "zh" }: { items: Booking[]; lo
   );
 }
 
-export function NotificationItem({ item }: { item: AppNotification }) {
+export function NotificationItem({
+  item,
+  locale = "zh",
+  interactive = false,
+}: {
+  item: AppNotification;
+  locale?: Locale;
+  interactive?: boolean;
+}) {
+  const copy = getDictionary(locale).messages;
+  const typeLabels: Record<AppNotificationType, string> = {
+    chat: copy.notificationTypes.chat,
+    booking: copy.notificationTypes.booking,
+    service: copy.notificationTypes.service,
+    community: copy.notificationTypes.community,
+  };
+  const iconTone =
+    item.type === "booking"
+      ? "bg-sky-100 text-sky-700"
+      : item.type === "chat"
+        ? "bg-orange-100 text-orange-700"
+        : item.type === "service"
+          ? "bg-emerald-100 text-emerald-700"
+          : "bg-black/[0.05] text-black/58";
+  const icon =
+    item.type === "booking" ? (
+      <CalendarClock className="size-4" />
+    ) : item.type === "chat" ? (
+      <MessageCircle className="size-4" />
+    ) : item.type === "service" ? (
+      <CheckCircle2 className="size-4" />
+    ) : (
+      <Clock3 className="size-4" />
+    );
+
+  const content = (
+    <>
+      <div className={cn("mt-0.5 rounded-full p-2", iconTone)}>{icon}</div>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-black/[0.04] px-2.5 py-1 text-[11px] font-semibold text-black/54">
+            {typeLabels[item.type]}
+          </span>
+          {!item.read ? <span className="rounded-full bg-[#f06f4f]/12 px-2.5 py-1 text-[11px] font-semibold text-[#b74c30]">{copy.unread}</span> : null}
+          {item.read ? <span className="rounded-full bg-black/[0.04] px-2.5 py-1 text-[11px] font-semibold text-black/42">{copy.read}</span> : null}
+        </div>
+        <p className="mt-2 text-sm font-semibold text-black/82">{item.title}</p>
+        <p className="mt-1 text-sm leading-6 text-black/58">{item.body}</p>
+        {interactive ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            <form action={openNotification}>
+              <input name="notification_id" type="hidden" value={item.id} />
+              <button className="rounded-full bg-[#f06f4f] px-4 py-2 text-xs font-semibold text-white" type="submit">
+                {copy.viewAndMarkRead}
+              </button>
+            </form>
+            {!item.read ? (
+              <form action={markNotificationRead}>
+                <input name="notification_id" type="hidden" value={item.id} />
+                <button className="rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-black/62" type="submit">
+                  {copy.markRead}
+                </button>
+              </form>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </>
+  );
+
+  if (interactive) {
+    return (
+      <article
+        className={cn(
+          "flex items-start gap-3 rounded-[1.4rem] border p-4",
+          item.read ? "border-black/8 bg-white/76" : "border-[#f06f4f]/18 bg-[#fff4ee]",
+        )}
+      >
+        {content}
+      </article>
+    );
+  }
+
   return (
     <Link
       href={item.action_url}
@@ -388,35 +471,7 @@ export function NotificationItem({ item }: { item: AppNotification }) {
         item.read ? "border-black/8 bg-white/76" : "border-[#f06f4f]/18 bg-[#fff4ee]",
       )}
     >
-      <div
-        className={cn(
-          "mt-0.5 rounded-full p-2",
-          item.type === "booking"
-            ? "bg-sky-100 text-sky-700"
-            : item.type === "chat"
-              ? "bg-orange-100 text-orange-700"
-              : item.type === "trust"
-                ? "bg-emerald-100 text-emerald-700"
-                : "bg-black/[0.05] text-black/58",
-        )}
-      >
-        {item.type === "booking" ? (
-          <CalendarClock className="size-4" />
-        ) : item.type === "chat" ? (
-          <MessageCircle className="size-4" />
-        ) : item.type === "trust" ? (
-          <CheckCircle2 className="size-4" />
-        ) : (
-          <Clock3 className="size-4" />
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-semibold text-black/82">{item.title}</p>
-          {!item.read ? <span className="size-2 rounded-full bg-[#f06f4f]" /> : null}
-        </div>
-        <p className="mt-1 text-sm leading-6 text-black/58">{item.body}</p>
-      </div>
+      {content}
     </Link>
   );
 }

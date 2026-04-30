@@ -142,7 +142,7 @@ export default async function AppHomePage() {
             </div>
             <div className="mt-5 grid gap-3">
               {notifications.map((item) => (
-                <NotificationItem key={item.id} item={item} />
+                <NotificationItem key={item.id} item={item} locale={locale} />
               ))}
             </div>
           </Panel>

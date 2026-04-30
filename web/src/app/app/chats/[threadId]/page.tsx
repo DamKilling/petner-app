@@ -61,7 +61,7 @@ export default async function ChatDetailPage({
             </div>
           </Panel>
 
-          <section className="grid gap-3 rounded-[2rem] border border-black/10 bg-white/70 p-4 md:p-6">
+          <section className="grid gap-3 rounded-[2rem] border border-black/10 bg-white/70 p-4 pb-8 md:p-6">
             {data.messages.length ? (
               data.messages.map((message) => {
                 const mine = message.sender_id === user?.id;
@@ -86,7 +86,7 @@ export default async function ChatDetailPage({
             )}
           </section>
 
-          <form action={sendMessage} className="flex gap-3 rounded-[1.8rem] border border-black/10 bg-white/85 p-3">
+          <form action={sendMessage} className="sticky bottom-24 z-20 flex gap-3 rounded-[1.8rem] border border-black/10 bg-white/90 p-3 shadow-[0_18px_48px_rgba(47,35,22,0.12)] backdrop-blur lg:static lg:shadow-none">
             <input name="thread_id" type="hidden" value={threadId} />
             <input
               className="min-w-0 flex-1 rounded-full border border-black/10 px-5 text-base"

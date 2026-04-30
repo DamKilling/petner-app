@@ -16,6 +16,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 import type {
   AppNotification,
+  AppNotificationType,
   ChatMessage,
   ChatThread,
   FeedPost,
@@ -35,6 +36,19 @@ export type AppUser = {
   email: string | null;
   profile: Profile;
 };
+
+export type NotificationFilters = {
+  type?: AppNotificationType | "all";
+  limit?: number;
+};
+
+function normalizeNotification(item: AppNotification): AppNotification {
+  return {
+    ...item,
+    read: item.read ?? Boolean(item.read_at),
+    read_at: item.read_at ?? (item.read ? item.created_at : null),
+  };
+}
 
 export type InteractiveMemory = {
   id: string;
@@ -139,7 +153,7 @@ export async function getDashboardData(userID: string) {
   }
 
   const supabase = await createClient();
-  const [pets, videos, chats, posts] = await Promise.all([
+  const [pets, videos, chats, notifications, posts] = await Promise.all([
     supabase.from("pets").select("id", { count: "exact", head: true }).eq("owner_id", userID),
     supabase
       .from("videos")
@@ -150,6 +164,11 @@ export async function getDashboardData(userID: string) {
       .from("chat_threads")
       .select("id", { count: "exact", head: true })
       .or(`initiator_id.eq.${userID},pet_owner_id.eq.${userID}`),
+    supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("recipient_id", userID)
+      .is("read_at", null),
     supabase
       .from("feed_posts")
       .select("*")
@@ -164,7 +183,7 @@ export async function getDashboardData(userID: string) {
     pendingVideoCount: videos.count ?? 0,
     chatCount: chats.count ?? 0,
     pendingBookingCount: 2,
-    unreadNotificationCount: 1,
+    unreadNotificationCount: notifications.count ?? 0,
     latestPosts: posts.data ?? [],
   };
 }
@@ -708,24 +727,50 @@ export async function getBookingDetail(bookingID: string) {
   return data;
 }
 
-export async function getNotifications(userID: string): Promise<AppNotification[]> {
+export async function getNotifications(
+  userID: string,
+  filters: NotificationFilters = {},
+): Promise<AppNotification[]> {
   noStore();
 
   if (!isSupabaseConfigured()) {
-    return demoNotifications;
+    return demoNotifications
+      .filter((item) => !filters.type || filters.type === "all" || item.type === filters.type)
+      .slice(0, filters.limit ?? 50)
+      .map(normalizeNotification);
   }
 
-  const threads = await getChatThreads(userID);
+  const supabase = await createClient();
+  let query = supabase
+    .from("notifications")
+    .select("*")
+    .eq("recipient_id", userID)
+    .order("created_at", { ascending: false })
+    .limit(filters.limit ?? 50);
 
-  return threads.slice(0, 4).map((thread, index) => ({
-    id: `notification-thread-${thread.id}`,
-    type: index === 0 ? "chat" : index === 1 ? "booking" : "community",
-    title: index === 0 ? "收到一条新消息" : index === 1 ? "预约状态有更新" : "社区互动有新回复",
-    body: thread.subtitle,
-    action_url: `/app/chats/${thread.id}`,
-    read: index > 1,
-    created_at: thread.updated_at,
-  }));
+  if (filters.type && filters.type !== "all") {
+    query = query.eq("type", filters.type);
+  }
+
+  const { data } = await query.returns<AppNotification[]>();
+  return (data ?? []).map(normalizeNotification);
+}
+
+export async function getUnreadNotificationCount(userID: string) {
+  noStore();
+
+  if (!isSupabaseConfigured()) {
+    return demoNotifications.filter((item) => !normalizeNotification(item).read).length;
+  }
+
+  const supabase = await createClient();
+  const { count } = await supabase
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("recipient_id", userID)
+    .is("read_at", null);
+
+  return count ?? 0;
 }
 
 export async function getSignedMediaUrl(path: string | null) {

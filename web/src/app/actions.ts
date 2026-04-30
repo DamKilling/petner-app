@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { demoNotifications } from "@/lib/demo-data";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
+import type { AppNotificationType } from "@/lib/types";
 import { splitTags } from "@/lib/utils";
 
 async function getAuthenticatedSupabase() {
@@ -26,6 +28,45 @@ async function getAuthenticatedSupabase() {
 
 function text(formData: FormData, key: string, fallback = "") {
   return String(formData.get(key) ?? fallback).trim();
+}
+
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+async function createNotification(
+  supabase: SupabaseServerClient,
+  input: {
+    recipientID: string;
+    actorID: string;
+    type: AppNotificationType;
+    title: string;
+    body: string;
+    actionURL: string;
+    sourceTable?: string;
+    sourceID?: string;
+  },
+) {
+  if (input.recipientID === input.actorID) {
+    return;
+  }
+
+  const { error } = await supabase.from("notifications").insert({
+    recipient_id: input.recipientID,
+    actor_id: input.actorID,
+    type: input.type,
+    title: input.title,
+    body: input.body,
+    action_url: input.actionURL,
+    source_table: input.sourceTable ?? null,
+    source_id: input.sourceID ?? null,
+  });
+
+  if (error) {
+    console.error("Failed to create notification", error.message);
+  }
+}
+
+function truncateNotificationBody(value: string, maxLength = 96) {
+  return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
 }
 
 function ownedStoragePath(
@@ -153,6 +194,88 @@ export async function signOut() {
   }
 
   redirect("/login");
+}
+
+export async function openNotification(formData: FormData) {
+  const notificationID = text(formData, "notification_id");
+
+  if (!isSupabaseConfigured()) {
+    const notification = demoNotifications.find((item) => item.id === notificationID);
+    redirect(notification?.action_url ?? "/app/chats?tab=updates");
+  }
+
+  const { supabase, user } = await getAuthenticatedSupabase();
+  const { data: notification } = await supabase
+    .from("notifications")
+    .select("id,action_url")
+    .eq("id", notificationID)
+    .eq("recipient_id", user.id)
+    .maybeSingle<{ id: string; action_url: string }>();
+
+  if (!notification) {
+    redirect("/app/chats?tab=updates");
+  }
+
+  await supabase
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .eq("id", notification.id)
+    .eq("recipient_id", user.id);
+
+  revalidatePath("/app");
+  revalidatePath("/app/chats");
+  redirect(notification.action_url);
+}
+
+export async function markNotificationRead(formData: FormData) {
+  if (!isSupabaseConfigured()) {
+    revalidatePath("/app/chats");
+    return;
+  }
+
+  const { supabase, user } = await getAuthenticatedSupabase();
+  const notificationID = text(formData, "notification_id");
+
+  const { error } = await supabase
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .eq("id", notificationID)
+    .eq("recipient_id", user.id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/app");
+  revalidatePath("/app/chats");
+}
+
+export async function markAllNotificationsRead(formData: FormData) {
+  if (!isSupabaseConfigured()) {
+    revalidatePath("/app/chats");
+    return;
+  }
+
+  const { supabase, user } = await getAuthenticatedSupabase();
+  const type = text(formData, "type", "all");
+  let query = supabase
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .eq("recipient_id", user.id)
+    .is("read_at", null);
+
+  if (type !== "all") {
+    query = query.eq("type", type);
+  }
+
+  const { error } = await query;
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/app");
+  revalidatePath("/app/chats");
 }
 
 export async function updateProfile(formData: FormData) {
@@ -330,17 +453,37 @@ export async function toggleLike(formData: FormData) {
 export async function addComment(formData: FormData) {
   const { supabase, user } = await getAuthenticatedSupabase();
   const postID = text(formData, "post_id");
+  const body = text(formData, "body");
+  const { data: post } = await supabase
+    .from("feed_posts")
+    .select("author_id,pet_name")
+    .eq("id", postID)
+    .maybeSingle<{ author_id: string; pet_name: string }>();
   const { error } = await supabase.from("post_comments").insert({
     post_id: postID,
     author_id: user.id,
-    body: text(formData, "body"),
+    body,
   });
 
   if (error) {
     throw new Error(error.message);
   }
 
+  if (post) {
+    await createNotification(supabase, {
+      recipientID: post.author_id,
+      actorID: user.id,
+      type: "community",
+      title: "社区动态有新评论",
+      body: truncateNotificationBody(body),
+      actionURL: `/app/match/posts/${postID}`,
+      sourceTable: "feed_posts",
+      sourceID: postID,
+    });
+  }
+
   revalidatePath(`/app/match/posts/${postID}`);
+  revalidatePath("/app/chats");
 }
 
 export async function openChat(formData: FormData) {
@@ -513,6 +656,17 @@ export async function openServiceChat(formData: FormData) {
       throw new Error(insertError.message);
     }
 
+    await createNotification(supabase, {
+      recipientID: request.requester_id,
+      actorID: user.id,
+      type: "service",
+      title: "服务需求收到新的联系",
+      body: `有人想继续沟通：${request.title}`,
+      actionURL: `/app/chats/${threadID}`,
+      sourceTable: "service_requests",
+      sourceID: request.id,
+    });
+
     redirect(`/app/chats/${threadID}`);
   }
 
@@ -552,6 +706,17 @@ export async function openServiceChat(formData: FormData) {
   if (insertError) {
     throw new Error(insertError.message);
   }
+
+  await createNotification(supabase, {
+    recipientID: offer.provider_id,
+    actorID: user.id,
+    type: "service",
+    title: "服务卡收到新的联系",
+    body: `有人想继续沟通：${offer.title}`,
+    actionURL: `/app/chats/${threadID}`,
+    sourceTable: "service_offers",
+    sourceID: offer.id,
+  });
 
   redirect(`/app/chats/${threadID}`);
 }
@@ -656,9 +821,19 @@ export async function createBookingDraft(formData: FormData) {
 }
 
 export async function updateBookingStatus(formData: FormData) {
-  const { supabase } = await getAuthenticatedSupabase();
+  const { supabase, user } = await getAuthenticatedSupabase();
   const bookingID = text(formData, "booking_id");
   const status = text(formData, "status", "pending");
+  const { data: booking } = await supabase
+    .from("bookings")
+    .select("id,requester_id,provider_id,service_type")
+    .eq("id", bookingID)
+    .maybeSingle<{ id: string; requester_id: string; provider_id: string; service_type: string }>();
+
+  if (!booking || ![booking.requester_id, booking.provider_id].includes(user.id)) {
+    throw new Error("没有权限更新这条预约。");
+  }
+
   const { error } = await supabase
     .from("bookings")
     .update({ status, updated_at: new Date().toISOString() })
@@ -668,8 +843,20 @@ export async function updateBookingStatus(formData: FormData) {
     throw new Error(error.message);
   }
 
+  await createNotification(supabase, {
+    recipientID: booking.requester_id === user.id ? booking.provider_id : booking.requester_id,
+    actorID: user.id,
+    type: "booking",
+    title: "预约状态有更新",
+    body: `${booking.service_type} 已更新为 ${status}`,
+    actionURL: `/app/match/bookings/${bookingID}`,
+    sourceTable: "bookings",
+    sourceID: bookingID,
+  });
+
   revalidatePath("/app");
   revalidatePath("/app/profile");
+  revalidatePath("/app/chats");
   revalidatePath(`/app/match/bookings/${bookingID}`);
 }
 
@@ -701,9 +888,9 @@ export async function sendMessage(formData: FormData) {
 
   const { data: thread } = await supabase
     .from("chat_threads")
-    .select("id,initiator_id,pet_owner_id")
+    .select("id,initiator_id,pet_owner_id,title")
     .eq("id", threadID)
-    .maybeSingle<{ id: string; initiator_id: string; pet_owner_id: string }>();
+    .maybeSingle<{ id: string; initiator_id: string; pet_owner_id: string; title: string }>();
 
   if (!thread || ![thread.initiator_id, thread.pet_owner_id].includes(user.id)) {
     throw new Error("没有权限发送这条消息。");
@@ -725,5 +912,18 @@ export async function sendMessage(formData: FormData) {
     throw new Error(messageError?.message ?? threadError?.message);
   }
 
+  await createNotification(supabase, {
+    recipientID: thread.initiator_id === user.id ? thread.pet_owner_id : thread.initiator_id,
+    actorID: user.id,
+    type: "chat",
+    title: "收到一条新消息",
+    body: truncateNotificationBody(body),
+    actionURL: `/app/chats/${threadID}`,
+    sourceTable: "chat_threads",
+    sourceID: threadID,
+  });
+
+  revalidatePath("/app");
+  revalidatePath("/app/chats");
   revalidatePath(`/app/chats/${threadID}`);
 }

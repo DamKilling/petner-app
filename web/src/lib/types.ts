@@ -5,6 +5,7 @@ export type ServiceOfferStatus = "active" | "paused";
 export type ServiceRequestStatus = "open" | "matched" | "closed";
 export type BookingStatus = "draft" | "pending" | "confirmed" | "completed" | "cancelled";
 export type BookingSourceKind = "offer" | "request";
+export type AppNotificationType = "chat" | "booking" | "service" | "community";
 
 export type Profile = {
   id: string;
@@ -210,10 +211,15 @@ export type ReviewSummary = {
 
 export type AppNotification = {
   id: string;
-  type: "chat" | "booking" | "trust" | "community";
+  recipient_id?: string;
+  actor_id?: string | null;
+  type: AppNotificationType;
   title: string;
   body: string;
   action_url: string;
+  source_table?: string | null;
+  source_id?: string | null;
+  read_at?: string | null;
   read: boolean;
   created_at: string;
 };
