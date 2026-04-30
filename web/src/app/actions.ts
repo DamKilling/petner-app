@@ -363,6 +363,7 @@ export async function addPet(formData: FormData) {
     species: text(formData, "species", "狗狗"),
     breed: text(formData, "breed"),
     age_text: text(formData, "age_text"),
+    sex: text(formData, "sex", "unknown"),
     city: text(formData, "city", "上海"),
     bio: text(formData, "bio"),
     interests: splitTags(formData.get("interests")),

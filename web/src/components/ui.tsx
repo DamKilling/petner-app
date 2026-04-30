@@ -123,10 +123,10 @@ export function Field({
   required?: boolean;
 }) {
   return (
-    <label className="grid gap-2 text-sm font-medium text-black/70">
+    <label className="grid min-w-0 gap-2 text-sm font-medium text-black/70">
       {label}
       <input
-        className="h-11 rounded-2xl border border-black/10 bg-white px-4 text-base text-black"
+        className="h-11 w-full min-w-0 rounded-2xl border border-black/10 bg-white px-4 text-base text-black"
         defaultValue={type === "file" ? undefined : (defaultValue ?? "")}
         name={name}
         placeholder={placeholder}
@@ -151,10 +151,10 @@ export function TextArea({
   required?: boolean;
 }) {
   return (
-    <label className="grid gap-2 text-sm font-medium text-black/70">
+    <label className="grid min-w-0 gap-2 text-sm font-medium text-black/70">
       {label}
       <textarea
-        className="min-h-28 rounded-2xl border border-black/10 bg-white px-4 py-3 text-base text-black"
+        className="min-h-28 w-full min-w-0 rounded-2xl border border-black/10 bg-white px-4 py-3 text-base text-black"
         defaultValue={defaultValue ?? ""}
         name={name}
         placeholder={placeholder}
@@ -176,10 +176,10 @@ export function SelectField({
   defaultValue?: string;
 }) {
   return (
-    <label className="grid gap-2 text-sm font-medium text-black/70">
+    <label className="grid min-w-0 gap-2 text-sm font-medium text-black/70">
       {label}
       <select
-        className="h-11 rounded-2xl border border-black/10 bg-white px-4 text-base text-black"
+        className="h-11 w-full min-w-0 rounded-2xl border border-black/10 bg-white px-4 text-base text-black"
         defaultValue={defaultValue}
         name={name}
       >

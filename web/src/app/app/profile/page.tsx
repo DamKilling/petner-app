@@ -221,6 +221,11 @@ export default async function ProfilePage({
                     <Field defaultValue={locale === "en" ? "Dog" : "狗狗"} label={copy.species} name="species" required />
                     <Field label={copy.breed} name="breed" required />
                     <Field label={copy.age} name="age_text" placeholder={locale === "en" ? "10 months" : "10个月"} required />
+                    <SelectField defaultValue="unknown" label={copy.sex} name="sex">
+                      <option value="unknown">{copy.unknownSex}</option>
+                      <option value="male">{copy.male}</option>
+                      <option value="female">{copy.female}</option>
+                    </SelectField>
                     <Field defaultValue={profile.city ?? (locale === "en" ? "Shanghai" : "上海")} label={copy.city} name="city" required />
                     <SelectField defaultValue="public" label={copy.visibility} name="visibility">
                       <option value="public">{copy.publicVisibility}</option>
