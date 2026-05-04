@@ -1,11 +1,11 @@
 import Link from "next/link";
 
 import { MemoryComposerForm } from "@/components/memory-composer-form";
+import { MemoryAccentBadge, MemoryOrnamentIcon, normalizeMemoryAccent } from "@/components/memory-style-options";
 import { ButtonLink, EmptyState, PageHeader, Panel } from "@/components/ui";
 import { getCurrentUser, getMemories } from "@/lib/data";
 import { getDictionary } from "@/lib/i18n";
 import { getRequestLocale } from "@/lib/i18n-server";
-import { accentSoftClasses } from "@/lib/theme";
 
 export default async function TreePage() {
   const locale = await getRequestLocale();
@@ -32,9 +32,10 @@ export default async function TreePage() {
                 href={`/app/tree/${memory.id}`}
                 key={memory.id}
               >
-                <span className={accentSoftClasses[memory.accent] + " rounded-full px-3 py-1 text-xs font-semibold"}>
+                <MemoryAccentBadge accent={normalizeMemoryAccent(memory.accent)}>
+                  <MemoryOrnamentIcon ornament={memory.ornament} />
                   {memory.date_text}
-                </span>
+                </MemoryAccentBadge>
                 <h2 className="mt-5 text-2xl font-semibold">{memory.title}</h2>
                 <p className="mt-3 text-sm leading-6 text-black/55">{memory.subtitle}</p>
               </Link>

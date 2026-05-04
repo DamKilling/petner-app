@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import { addMemory } from "@/app/actions";
 import type { Dictionary } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
+import { MemoryStylePicker } from "@/components/memory-style-options";
 
 type MemoryComposerFormProps = {
   copy: Dictionary["memoryComposer"];
@@ -52,10 +53,10 @@ async function uploadOwnerFile(
 }
 
 const fieldClass =
-  "h-12 rounded-2xl border border-black/10 bg-white px-4 text-base text-black outline-none transition focus:border-[#f06f4f]/60 focus:ring-4 focus:ring-[#f06f4f]/10";
+  "h-12 w-full min-w-0 rounded-2xl border border-black/10 bg-white px-4 text-base text-black outline-none transition focus:border-[#f06f4f]/60 focus:ring-4 focus:ring-[#f06f4f]/10";
 
 const fileClass =
-  "min-h-12 rounded-2xl border border-black/10 bg-white px-4 py-2 text-sm text-black outline-none transition file:mr-4 file:rounded-full file:border-0 file:bg-[#201a16] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white focus:border-[#f06f4f]/60 focus:ring-4 focus:ring-[#f06f4f]/10";
+  "min-h-12 w-full min-w-0 rounded-2xl border border-black/10 bg-white px-4 py-2 text-sm text-black outline-none transition file:mr-4 file:rounded-full file:border-0 file:bg-[#201a16] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white focus:border-[#f06f4f]/60 focus:ring-4 focus:ring-[#f06f4f]/10";
 
 export function MemoryComposerForm({ copy, userID }: MemoryComposerFormProps) {
   const formRef = useRef<HTMLFormElement | null>(null);
@@ -137,26 +138,12 @@ export function MemoryComposerForm({ copy, userID }: MemoryComposerFormProps) {
         <label className="grid gap-2 text-sm font-medium text-black/70">
           {copy.storyLabel}
           <textarea
-            className="min-h-28 rounded-2xl border border-black/10 bg-white px-4 py-3 text-base text-black outline-none transition focus:border-[#f06f4f]/60 focus:ring-4 focus:ring-[#f06f4f]/10"
+            className="min-h-28 w-full min-w-0 rounded-2xl border border-black/10 bg-white px-4 py-3 text-base text-black outline-none transition focus:border-[#f06f4f]/60 focus:ring-4 focus:ring-[#f06f4f]/10"
             name="story"
             required
           />
         </label>
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="grid gap-2 text-sm font-medium text-black/70">
-            {copy.ornamentLabel}
-            <input className={fieldClass} defaultValue="star" name="ornament" />
-          </label>
-          <label className="grid gap-2 text-sm font-medium text-black/70">
-            {copy.accentLabel}
-            <select className={fieldClass} defaultValue="pine" name="accent">
-              <option value="pine">Pine</option>
-              <option value="ember">Ember</option>
-              <option value="peach">Peach</option>
-              <option value="mint">Mint</option>
-            </select>
-          </label>
-        </div>
+        <MemoryStylePicker copy={copy} />
         <label className="grid gap-2 text-sm font-medium text-black/70">
           {copy.photoLabel}
           <input className={fileClass} name="photo" type="file" accept="image/*" />

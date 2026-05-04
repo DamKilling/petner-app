@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { deleteMemory } from "@/app/actions";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { SignedImage } from "@/components/media";
+import { MemoryAccentBadge, MemoryOrnamentIcon, normalizeMemoryAccent } from "@/components/memory-style-options";
 import { ButtonLink, PageHeader, Panel } from "@/components/ui";
 import { getCurrentUser, getMemory, getSignedMediaUrl } from "@/lib/data";
 import { getDictionary } from "@/lib/i18n";
@@ -52,7 +53,10 @@ export default async function MemoryDetailPage({
       <div className="grid gap-6 lg:grid-cols-[0.9fr_1fr]">
         <SignedImage alt={memory.title} path={memory.photo_path} />
         <Panel>
-          <p className="text-sm font-semibold text-[#f06f4f]">{memory.date_text}</p>
+          <MemoryAccentBadge accent={normalizeMemoryAccent(memory.accent)} className="text-sm">
+            <MemoryOrnamentIcon ornament={memory.ornament} />
+            {memory.date_text}
+          </MemoryAccentBadge>
           <p className="mt-6 text-lg leading-8 text-black/68">{memory.story}</p>
           {audioUrl ? (
             <div className="mt-8">
