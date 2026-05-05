@@ -3,11 +3,64 @@ import { CalendarCheck, Clock3, MapPin, PawPrint, RefreshCw, ShieldCheck, Star, 
 
 import { createPost, openChat, toggleLike } from "@/app/actions";
 import { ButtonLink, EmptyState, Field, Panel, SelectField, SubmitButton, TextArea } from "@/components/ui";
-import { PetCard, ReviewHighlight, SectionTabs, TrustBadge } from "@/components/product-ui";
+import { PetCard, ProfileSummary, ReviewHighlight, SectionTabs, TrustBadge } from "@/components/product-ui";
 import { getCurrentUser, getDiscoverPets, getFeedPosts, getOwnedPets, getReviewSummary, getServiceBoardData } from "@/lib/data";
 import { getDictionary } from "@/lib/i18n";
 import { getRequestLocale } from "@/lib/i18n-server";
+import type { Locale } from "@/lib/i18n";
+import type { Profile } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
+
+function compactProfileCopy(locale: Locale) {
+  return locale === "en"
+    ? {
+        fallbackName: "PetLife user",
+        cityFallback: "City not set",
+      }
+    : {
+        fallbackName: "PetLife 用户",
+        cityFallback: "城市未填写",
+      };
+}
+
+function CompactIdentityLine({
+  profile,
+  fallbackName,
+  roleLabel,
+  locale,
+}: {
+  profile?: Profile | null;
+  fallbackName?: string;
+  roleLabel: string;
+  locale: Locale;
+}) {
+  const copy = compactProfileCopy(locale);
+  const displayName = profile?.display_name || fallbackName || copy.fallbackName;
+  const city = profile?.city || copy.cityFallback;
+  const responseTime = profile?.response_time_label;
+  const initial = displayName.trim().slice(0, 1).toUpperCase();
+
+  return (
+    <div className="mt-2 flex min-w-0 items-center gap-2 text-sm text-black/54">
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#fff1e8] text-[11px] font-semibold text-[#b74c30]">
+        {initial}
+      </span>
+      <span className="min-w-0 truncate">
+        <span className="font-medium text-black/46">{roleLabel}</span>
+        <span className="mx-1 text-black/28">·</span>
+        <span className="font-semibold text-[#2f241e]">{displayName}</span>
+        <span className="mx-1 text-black/28">·</span>
+        <span>{city}</span>
+        {responseTime ? (
+          <>
+            <span className="mx-1 text-black/28">·</span>
+            <span>{responseTime}</span>
+          </>
+        ) : null}
+      </span>
+    </div>
+  );
+}
 
 export default async function MatchPage({
   searchParams,
@@ -33,6 +86,18 @@ export default async function MatchPage({
   const visiblePets = [...ownedPets, ...discoverPets];
   const offers = serviceBoard.offers;
   const requests = serviceBoard.requests;
+  const identityLabels =
+    locale === "en"
+      ? {
+          postAuthor: "Posted by",
+          serviceProvider: "Service provider",
+          requestOwner: "Request owner",
+        }
+      : {
+          postAuthor: "发帖人",
+          serviceProvider: "服务者",
+          requestOwner: "需求发布者",
+        };
 
   return (
     <div className="grid gap-8">
@@ -98,8 +163,9 @@ export default async function MatchPage({
 
           <section className="grid gap-4">
             {posts.length ? (
-              posts.map(({ post, likes, comments, liked }) => {
+              posts.map(({ post, author_profile, likes, comments, comment_previews, liked }) => {
                 const relatedPet = visiblePets.find((pet) => pet.id === post.related_pet_id);
+                const hiddenCommentCount = Math.max(0, comments - comment_previews.length);
 
                 return (
                   <article key={post.id} className="rounded-[1.9rem] border border-black/8 bg-white/82 p-6 shadow-[0_18px_50px_rgba(47,35,22,0.06)]">
@@ -123,6 +189,14 @@ export default async function MatchPage({
                         </button>
                       </form>
                     </div>
+                    <ProfileSummary
+                      compact
+                      className="mt-4"
+                      fallbackName={locale === "en" ? "PetLife user" : "PetLife 用户"}
+                      locale={locale}
+                      profile={author_profile}
+                      roleLabel={identityLabels.postAuthor}
+                    />
                     <p className="mt-5 text-sm leading-7 text-black/66">{post.content}</p>
                     <div className="mt-4 flex flex-wrap gap-2">
                       {post.tags.map((tag) => (
@@ -131,6 +205,26 @@ export default async function MatchPage({
                         </span>
                       ))}
                     </div>
+                    {comment_previews.length ? (
+                      <div className="mt-5 rounded-[1.25rem] bg-[#fff8f2] px-4 py-3">
+                        <div className="grid gap-2">
+                          {comment_previews.map((comment) => (
+                            <p key={comment.id} className="line-clamp-2 text-sm leading-6 text-black/62">
+                              <span className="font-semibold text-[#2f241e]">
+                                {comment.author_profile?.display_name || (locale === "en" ? "PetLife user" : "PetLife 用户")}
+                              </span>
+                              <span className="mx-1 text-black/35">:</span>
+                              <span>{comment.body}</span>
+                            </p>
+                          ))}
+                        </div>
+                        {hiddenCommentCount > 0 ? (
+                          <Link href={`/app/match/posts/${post.id}`} className="mt-2 inline-flex text-xs font-semibold text-[#b54a2f]">
+                            {locale === "en" ? `View ${hiddenCommentCount} more in detail` : `还有 ${hiddenCommentCount} 条评论，进入详情查看`}
+                          </Link>
+                        ) : null}
+                      </div>
+                    ) : null}
                     <div className="mt-5 flex flex-wrap items-center gap-4 border-t border-black/8 pt-4 text-sm font-semibold">
                       <Link href={`/app/match/posts/${post.id}`} className="text-[#b54a2f]">
                         {copy.openDetail} · {comments} {copy.comments}
@@ -239,29 +333,47 @@ export default async function MatchPage({
             </div>
 
             {serviceSurface === "offers" && offers.length ? (
-              offers.map((offer) => (
+              offers.map((offer) => {
+                const visibleTypes = offer.service_types.slice(0, 2);
+                const hiddenTypeCount = Math.max(offer.service_types.length - visibleTypes.length, 0);
+
+                return (
                 <article
                   key={offer.id}
-                  className="group overflow-hidden rounded-[1.6rem] border border-black/8 bg-white/90 p-5 shadow-[0_18px_54px_rgba(47,35,22,0.08)] transition hover:-translate-y-0.5 hover:border-[#e96a4b]/28 hover:shadow-[0_24px_72px_rgba(47,35,22,0.12)]"
+                  className="group overflow-hidden rounded-[1.45rem] border border-black/8 bg-white/92 p-4 shadow-[0_14px_42px_rgba(47,35,22,0.07)] transition hover:-translate-y-0.5 hover:border-[#e96a4b]/24 hover:shadow-[0_22px_64px_rgba(47,35,22,0.11)] md:p-5"
                 >
-                  <div className="grid gap-5 md:grid-cols-[auto_minmax(0,1fr)] 2xl:grid-cols-[auto_minmax(0,1fr)_auto]">
-                    <div className="flex size-16 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#fff0df,#e6f1e7)] text-[#c45d42]">
-                      <PawPrint className="size-7" />
+                  <div className="grid gap-4 md:grid-cols-[auto_minmax(0,1fr)] 2xl:grid-cols-[auto_minmax(0,1fr)_auto]">
+                    <div className="flex size-12 items-center justify-center rounded-2xl bg-[#fff2e8] text-[#c45d42] md:size-14">
+                      <PawPrint className="size-6" />
                     </div>
                     <div className="min-w-0">
-                      <div className="flex flex-wrap gap-2">
-                        {offer.service_types.map((item) => (
-                          <span key={item} className="rounded-full bg-[#fff0e8] px-3 py-1 text-xs font-semibold leading-relaxed text-[#a94831]">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {visibleTypes.map((item) => (
+                          <span key={item} className="rounded-full bg-[#fff0e8] px-2.5 py-1 text-[11px] font-semibold leading-relaxed text-[#a94831]">
                             {item}
                           </span>
                         ))}
+                        {hiddenTypeCount ? (
+                          <span className="rounded-full bg-black/[0.04] px-2.5 py-1 text-[11px] font-semibold text-black/46">
+                            +{hiddenTypeCount}
+                          </span>
+                        ) : null}
+                        <span className="rounded-full bg-[#f8f3ec] px-2.5 py-1 text-[11px] font-semibold text-[#2f241e]">
+                          {offer.price_mode}
+                        </span>
+                        <span className="rounded-full bg-[#f6efe5] px-2.5 py-1 text-[11px] text-black/52">
+                          {offer.related_pet_name ?? dict.common.noPetRequest}
+                        </span>
                       </div>
                       <h2 className="mt-3 break-words text-xl font-semibold leading-snug tracking-tight text-[#2f241e]">{offer.title ?? offer.provider_name}</h2>
-                      <p className="mt-1 break-words text-sm leading-6 text-black/50">
-                        {offer.provider_name} · {offer.related_pet_name ?? dict.common.noPetRequest}
-                      </p>
+                      <CompactIdentityLine
+                        fallbackName={offer.provider_name}
+                        locale={locale}
+                        profile={offer.provider_profile}
+                        roleLabel={identityLabels.serviceProvider}
+                      />
                       <p className="mt-3 line-clamp-2 break-words text-sm leading-6 text-black/62">{offer.intro}</p>
-                      <div className="mt-4 grid gap-2 text-sm text-black/58 sm:grid-cols-3">
+                      <div className="mt-4 grid gap-2 rounded-2xl bg-[#fbf7f1] px-3 py-3 text-sm text-black/58 sm:grid-cols-3">
                         <span className="inline-flex items-center gap-1.5">
                           <Star className="size-4 fill-current text-[#d99735]" />
                           {offer.rating_avg.toFixed(1)} · {offer.rating_count} {dict.product.reviews}
@@ -276,34 +388,43 @@ export default async function MatchPage({
                         </span>
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-2 md:col-span-2 md:items-center md:justify-between 2xl:col-span-1 2xl:flex-col 2xl:items-end 2xl:justify-between">
-                      <div className="rounded-2xl bg-[#f8f3ec] px-4 py-2 text-sm font-semibold text-[#2f241e]">{offer.price_mode}</div>
-                      <div className="flex flex-wrap gap-2">
-                        <ButtonLink href={`/app/match/services/${offer.id}`} className="h-10 px-4">
-                          {dict.common.viewDetails}
-                        </ButtonLink>
-                        <ButtonLink href={`/app/match/services/${offer.id}`} variant="secondary" className="h-10 px-4">
-                          {dict.common.book}
-                        </ButtonLink>
-                      </div>
+                    <div className="flex flex-wrap gap-2 md:col-span-2 md:justify-end 2xl:col-span-1 2xl:flex-col 2xl:items-end 2xl:justify-end">
+                      <ButtonLink href={`/app/match/services/${offer.id}`} className="h-10 px-4">
+                        {dict.common.viewDetails}
+                      </ButtonLink>
+                      <ButtonLink href={`/app/match/services/${offer.id}`} variant="secondary" className="h-10 px-4">
+                        {dict.common.book}
+                      </ButtonLink>
                     </div>
                   </div>
                 </article>
-              ))
+                );
+              })
             ) : serviceSurface === "requests" && requests.length ? (
               requests.map((request) => (
-                <article key={request.id} className="rounded-[1.6rem] border border-black/8 bg-white/90 p-5 shadow-[0_18px_54px_rgba(47,35,22,0.08)] transition hover:-translate-y-0.5 hover:border-[#9bb89a]/36">
+                <article key={request.id} className="rounded-[1.45rem] border border-black/8 bg-white/92 p-4 shadow-[0_14px_42px_rgba(47,35,22,0.07)] transition hover:-translate-y-0.5 hover:border-[#9bb89a]/32 md:p-5">
                   <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <span className="rounded-full bg-[#edf5ed] px-3 py-1 text-xs font-semibold text-[#55715a]">{request.request_type}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-[#edf5ed] px-2.5 py-1 text-[11px] font-semibold text-[#55715a]">{request.request_type}</span>
+                        <span className="rounded-full bg-[#f6efe5] px-2.5 py-1 text-[11px] text-black/52">
+                          {request.status === "open" ? (locale === "en" ? "Open" : "开放中") : request.status}
+                        </span>
+                      </div>
                       <h2 className="mt-3 text-xl font-semibold text-[#2f241e]">{request.title}</h2>
-                      <p className="mt-2 text-sm leading-6 text-black/60">{request.detail}</p>
+                      <CompactIdentityLine
+                        fallbackName={request.requester_name}
+                        locale={locale}
+                        profile={request.requester_profile}
+                        roleLabel={identityLabels.requestOwner}
+                      />
+                      <p className="mt-3 line-clamp-2 text-sm leading-6 text-black/60">{request.detail}</p>
                     </div>
-                    <ButtonLink href={`/app/match/requests/${request.id}`} className="h-10 px-4">
+                    <ButtonLink href={`/app/match/requests/${request.id}`} className="h-10 px-4 max-sm:w-full">
                       {dict.product.requestDetail}
                     </ButtonLink>
                   </div>
-                  <div className="mt-4 grid gap-2 text-sm text-black/58 sm:grid-cols-3">
+                  <div className="mt-4 grid gap-2 rounded-2xl bg-[#fbf7f1] px-3 py-3 text-sm text-black/58 sm:grid-cols-3">
                     <span className="inline-flex items-center gap-1.5">
                       <MapPin className="size-4 text-black/36" />
                       {request.city}
