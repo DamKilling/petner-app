@@ -72,41 +72,55 @@ export default async function ChatDetailPage({
             </div>
           </Panel>
 
-          <section className="grid gap-3 rounded-[2rem] border border-black/10 bg-white/70 p-4 pb-8 md:p-6">
-            {data.messages.length ? (
-              data.messages.map((message) => {
-                const mine = message.sender_id === user?.id;
-                return (
-                  <div className={cn("flex", mine ? "justify-end" : "justify-start")} key={message.id}>
-                    <div
-                      className={cn(
-                        "max-w-[82%] rounded-[1.4rem] px-4 py-3 text-sm leading-6 shadow-[0_8px_22px_rgba(47,35,22,0.04)]",
-                        mine ? "bg-[#f06f4f] text-white" : "border border-black/8 bg-white text-black/72",
-                      )}
-                    >
-                      {!mine ? <p className="mb-1 text-xs font-semibold text-black/42">{otherDisplayName}</p> : null}
-                      {message.text}
-                      <p className={cn("mt-2 text-[11px]", mine ? "text-white/60" : "text-black/38")}>
-                        {formatDate(message.created_at)}
-                      </p>
+          <section className="overflow-hidden rounded-[1.7rem] border border-black/8 bg-[linear-gradient(180deg,#fffaf4_0%,#f7f0e7_100%)] p-3 shadow-[0_16px_48px_rgba(47,35,22,0.06)] md:p-5">
+            <div className="grid min-h-[18rem] content-start gap-3 rounded-[1.35rem] bg-white/52 p-3 md:p-4">
+              {data.messages.length ? (
+                data.messages.map((message) => {
+                  const mine = message.sender_id === user?.id;
+                  return (
+                    <div className={cn("flex items-end gap-2", mine ? "justify-end" : "justify-start")} key={message.id}>
+                      {!mine ? (
+                        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#fff0e6] text-xs font-semibold text-[#b74c30]">
+                          {otherDisplayName.trim().slice(0, 1).toUpperCase()}
+                        </div>
+                      ) : null}
+                      <div
+                        className={cn(
+                          "w-fit max-w-[min(76%,34rem)] px-4 py-2.5 text-sm leading-6 shadow-[0_10px_24px_rgba(47,35,22,0.06)]",
+                          mine
+                            ? "rounded-[1.25rem] rounded-br-md bg-[#f06f4f] text-white"
+                            : "rounded-[1.25rem] rounded-bl-md border border-black/8 bg-white text-black/72",
+                        )}
+                      >
+                        {!mine ? <p className="mb-1 text-xs font-semibold text-black/42">{otherDisplayName}</p> : null}
+                        <p className="whitespace-pre-wrap break-words">{message.text}</p>
+                        <p className={cn("mt-1.5 text-[11px]", mine ? "text-white/62" : "text-black/38")}>
+                          {formatDate(message.created_at)}
+                        </p>
+                      </div>
+                      {mine ? (
+                        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#2f241e] text-xs font-semibold text-white">
+                          {locale === "en" ? "Me" : "我"}
+                        </div>
+                      ) : null}
                     </div>
-                  </div>
-                );
-              })
-            ) : (
-              <p className="py-16 text-center text-sm text-black/45">{copy.noMessages}</p>
-            )}
+                  );
+                })
+              ) : (
+                <p className="py-16 text-center text-sm text-black/45">{copy.noMessages}</p>
+              )}
+            </div>
           </section>
 
-          <form action={sendMessage} className="sticky bottom-24 z-20 flex gap-3 rounded-[1.8rem] border border-black/10 bg-white/90 p-3 shadow-[0_18px_48px_rgba(47,35,22,0.12)] backdrop-blur lg:static lg:shadow-none">
+          <form action={sendMessage} className="sticky bottom-24 z-20 flex items-center gap-2 rounded-[1.45rem] border border-black/8 bg-white/92 p-2.5 shadow-[0_18px_48px_rgba(47,35,22,0.12)] backdrop-blur lg:static lg:shadow-[0_12px_32px_rgba(47,35,22,0.05)]">
             <input name="thread_id" type="hidden" value={threadId} />
             <input
-              className="min-w-0 flex-1 rounded-full border border-black/10 px-5 text-base"
+              className="h-12 min-w-0 flex-1 rounded-[1.1rem] border border-black/8 bg-[#fbf7f1] px-4 text-sm text-[#2f241e] outline-none transition placeholder:text-black/35 focus:border-[#f06f4f]/45 focus:bg-white"
               name="text"
               placeholder={copy.inputPlaceholder}
               required
             />
-            <SubmitButton>{copy.send}</SubmitButton>
+            <SubmitButton className="h-12 shrink-0 rounded-[1.1rem] px-5">{copy.send}</SubmitButton>
           </form>
         </div>
 
