@@ -103,6 +103,27 @@ export type PostComment = {
   created_at: string;
 };
 
+export type PostCommentPreview = PostComment & {
+  author_profile: Profile | null;
+};
+
+export type FeedPostListItem = {
+  post: FeedPost;
+  author_profile: Profile | null;
+  likes: number;
+  comments: number;
+  comment_previews: PostCommentPreview[];
+  liked: boolean;
+};
+
+export type FeedPostDetail = {
+  post: FeedPost;
+  author_profile: Profile | null;
+  comments: PostCommentPreview[];
+  likes: number;
+  liked: boolean;
+};
+
 export type ChatThread = {
   id: string;
   related_pet_id: string | null;
@@ -116,6 +137,11 @@ export type ChatThread = {
   accent: AccentToken;
   created_at: string;
   updated_at: string;
+};
+
+export type ChatThreadWithParticipant = ChatThread & {
+  other_user_id: string | null;
+  other_profile: Profile | null;
 };
 
 export type ChatMessage = {

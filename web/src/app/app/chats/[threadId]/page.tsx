@@ -2,7 +2,7 @@ import { CalendarClock, ShieldCheck, Star } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { sendMessage } from "@/app/actions";
-import { BookingTimeline, TrustBadge } from "@/components/product-ui";
+import { BookingTimeline, ProfileSummary, TrustBadge } from "@/components/product-ui";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { ButtonLink, PageHeader, Panel, SubmitButton } from "@/components/ui";
 import { getBookingDetail, getBookingTimeline, getChatThread, getCurrentUser } from "@/lib/data";
@@ -20,13 +20,15 @@ export default async function ChatDetailPage({
   const dict = getDictionary(locale);
   const copy = dict.messages;
   const user = await getCurrentUser();
-  const data = await getChatThread(threadId);
+  const data = await getChatThread(threadId, user?.id);
   const linkedBooking = data?.thread.booking_id ? await getBookingDetail(data.thread.booking_id) : null;
   const bookings = linkedBooking ? [linkedBooking] : await getBookingTimeline(user?.id ?? "demo");
 
   if (!data) {
     notFound();
   }
+  const identityLabels = locale === "en" ? { chatWith: "Chatting with" } : { chatWith: "聊天对象" };
+  const otherDisplayName = data.other_profile?.display_name ?? data.thread.title;
 
   return (
     <div className="grid gap-8">
@@ -34,7 +36,7 @@ export default async function ChatDetailPage({
       <PageHeader
         action={<ButtonLink href="/app/chats?tab=conversations" variant="secondary">{copy.backToMessages}</ButtonLink>}
         eyebrow={copy.conversationEyebrow}
-        title={data.thread.title}
+        title={otherDisplayName}
         description={data.thread.subtitle}
       />
 
@@ -45,8 +47,17 @@ export default async function ChatDetailPage({
               <div>
                 <div className="flex flex-wrap gap-2">
                   <TrustBadge label={copy.continueBooking} tone="trust" />
-                  <TrustBadge label={copy.petProfileAvailable} tone="verified" />
+                  {data.thread.related_pet_id ? <TrustBadge label={copy.petProfileAvailable} tone="verified" /> : null}
                 </div>
+                <ProfileSummary
+                  compact
+                  dark
+                  className="mt-4"
+                  fallbackName={data.thread.title}
+                  locale={locale}
+                  profile={data.other_profile}
+                  roleLabel={identityLabels.chatWith}
+                />
                 <h2 className="mt-4 text-2xl font-semibold">{data.thread.title}</h2>
                 <p className="mt-2 text-sm leading-6 text-white/62">{data.thread.subtitle}</p>
               </div>
@@ -73,6 +84,7 @@ export default async function ChatDetailPage({
                         mine ? "bg-[#f06f4f] text-white" : "border border-black/8 bg-white text-black/72",
                       )}
                     >
+                      {!mine ? <p className="mb-1 text-xs font-semibold text-black/42">{otherDisplayName}</p> : null}
                       {message.text}
                       <p className={cn("mt-2 text-[11px]", mine ? "text-white/60" : "text-black/38")}>
                         {formatDate(message.created_at)}

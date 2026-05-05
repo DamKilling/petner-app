@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { markAllNotificationsRead } from "@/app/actions";
-import { NotificationItem, SectionTabs, TrustBadge } from "@/components/product-ui";
+import { NotificationItem, ProfileSummary, SectionTabs, TrustBadge } from "@/components/product-ui";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { ButtonLink, EmptyState, PageHeader, Panel } from "@/components/ui";
 import { getChatThreads, getCurrentUser, getNotifications } from "@/lib/data";
@@ -36,6 +36,7 @@ export default async function ChatsPage({
     all: copy.filterAll,
     ...copy.notificationTypes,
   };
+  const identityLabels = locale === "en" ? { chatWith: "Chatting with" } : { chatWith: "聊天对象" };
 
   return (
     <div className="grid gap-8">
@@ -86,8 +87,16 @@ export default async function ChatsPage({
                         />
                         {thread.booking_id ? <TrustBadge label={copy.bookingInProgress} tone="trust" /> : null}
                         {!thread.booking_id ? <TrustBadge label={copy.canContinueChat} tone="verified" /> : null}
-                        <TrustBadge label={copy.petProfileAvailable} tone="verified" />
+                        {thread.related_pet_id ? <TrustBadge label={copy.petProfileAvailable} tone="verified" /> : null}
                       </div>
+                      <ProfileSummary
+                        compact
+                        className="mt-4"
+                        fallbackName={thread.title}
+                        locale={locale}
+                        profile={thread.other_profile}
+                        roleLabel={identityLabels.chatWith}
+                      />
                       <h2 className="mt-4 text-2xl font-semibold">{thread.title}</h2>
                       <p className="mt-2 text-sm leading-6 text-black/56">{thread.subtitle}</p>
                     </div>

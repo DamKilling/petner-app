@@ -19,10 +19,14 @@ import type {
   AppNotificationType,
   ChatMessage,
   ChatThread,
+  ChatThreadWithParticipant,
   FeedPost,
+  FeedPostDetail,
+  FeedPostListItem,
   Memory,
   Pet,
   PostComment,
+  PostCommentPreview,
   Profile,
   ReviewSummary,
   ServiceOffer,
@@ -329,11 +333,35 @@ export async function getVideo(videoID: string) {
   return data;
 }
 
-export async function getFeedPosts(userID: string) {
+export async function getFeedPosts(userID: string): Promise<FeedPostListItem[]> {
   noStore();
 
   if (!isSupabaseConfigured()) {
-    return demoPosts.map((post) => ({ post, likes: 12, comments: 1, liked: false }));
+    return demoPosts.map((post) => ({
+      post,
+      author_profile: demoProfile,
+      likes: 12,
+      comments: 2,
+      comment_previews: [
+        {
+          id: "demo-comment-1",
+          post_id: post.id,
+          author_id: demoProfile.id,
+          author_profile: demoProfile,
+          body: "想了解一下周末一般在哪个公园见面？",
+          created_at: new Date().toISOString(),
+        },
+        {
+          id: "demo-comment-2",
+          post_id: post.id,
+          author_id: demoProfile.id,
+          author_profile: demoProfile,
+          body: "我家狗狗也比较慢热，可以先线上聊聊。",
+          created_at: new Date().toISOString(),
+        },
+      ],
+      liked: false,
+    }));
   }
 
   const supabase = await createClient();
@@ -348,20 +376,40 @@ export async function getFeedPosts(userID: string) {
   }
 
   const ids = posts.map((post) => post.id);
-  const [{ data: likes }, { data: comments }] = await Promise.all([
+  const authorIDs = [...new Set(posts.map((post) => post.author_id))];
+  const [{ data: likes }, { data: comments }, authorProfiles] = await Promise.all([
     supabase.from("post_likes").select("post_id,user_id").in("post_id", ids),
-    supabase.from("post_comments").select("post_id").in("post_id", ids),
+    supabase
+      .from("post_comments")
+      .select("*")
+      .in("post_id", ids)
+      .order("created_at", { ascending: true })
+      .returns<PostComment[]>(),
+    getProfilesByIds(authorIDs),
   ]);
+  const commentAuthorIDs = [...new Set((comments ?? []).map((comment) => comment.author_id))];
+  const commentProfiles = await getProfilesByIds(commentAuthorIDs);
+  const commentsByPost = new Map<string, PostCommentPreview[]>();
+
+  for (const comment of comments ?? []) {
+    const nextComment = {
+      ...comment,
+      author_profile: commentProfiles.get(comment.author_id) ?? null,
+    };
+    commentsByPost.set(comment.post_id, [...(commentsByPost.get(comment.post_id) ?? []), nextComment]);
+  }
 
   return posts.map((post) => ({
     post,
+    author_profile: authorProfiles.get(post.author_id) ?? null,
     likes: likes?.filter((like) => like.post_id === post.id).length ?? 0,
-    comments: comments?.filter((comment) => comment.post_id === post.id).length ?? 0,
+    comments: commentsByPost.get(post.id)?.length ?? 0,
+    comment_previews: commentsByPost.get(post.id)?.slice(0, 3) ?? [],
     liked: likes?.some((like) => like.post_id === post.id && like.user_id === userID) ?? false,
   }));
 }
 
-export async function getPost(postID: string, userID: string) {
+export async function getPost(postID: string, userID: string): Promise<FeedPostDetail | null> {
   noStore();
 
   if (!isSupabaseConfigured()) {
@@ -369,6 +417,7 @@ export async function getPost(postID: string, userID: string) {
     return post
       ? {
           post,
+          author_profile: demoProfile,
           comments: [],
           likes: 12,
           liked: false,
@@ -387,7 +436,7 @@ export async function getPost(postID: string, userID: string) {
     return null;
   }
 
-  const [{ data: comments }, { data: likes }] = await Promise.all([
+  const [{ data: comments }, { data: likes }, authorProfiles] = await Promise.all([
     supabase
       .from("post_comments")
       .select("*")
@@ -395,17 +444,23 @@ export async function getPost(postID: string, userID: string) {
       .order("created_at", { ascending: true })
       .returns<PostComment[]>(),
     supabase.from("post_likes").select("user_id").eq("post_id", postID),
+    getProfilesByIds([post.author_id]),
   ]);
+  const commentProfiles = await getProfilesByIds([...new Set((comments ?? []).map((comment) => comment.author_id))]);
 
   return {
     post,
-    comments: comments ?? [],
+    author_profile: authorProfiles.get(post.author_id) ?? null,
+    comments: (comments ?? []).map((comment) => ({
+      ...comment,
+      author_profile: commentProfiles.get(comment.author_id) ?? null,
+    })),
     likes: likes?.length ?? 0,
     liked: likes?.some((like) => like.user_id === userID) ?? false,
   };
 }
 
-export async function getChatThreads(userID: string) {
+export async function getChatThreads(userID: string): Promise<ChatThreadWithParticipant[]> {
   noStore();
 
   if (!isSupabaseConfigured()) {
@@ -420,10 +475,28 @@ export async function getChatThreads(userID: string) {
     .order("updated_at", { ascending: false })
     .returns<ChatThread[]>();
 
-  return data ?? [];
+  const threads = data ?? [];
+  const otherUserIDs = [
+    ...new Set(
+      threads
+        .map((thread) => (thread.initiator_id === userID ? thread.pet_owner_id : thread.pet_owner_id === userID ? thread.initiator_id : null))
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  const profiles = await getProfilesByIds(otherUserIDs);
+
+  return threads.map((thread) => {
+    const otherUserID = thread.initiator_id === userID ? thread.pet_owner_id : thread.pet_owner_id === userID ? thread.initiator_id : null;
+
+    return {
+      ...thread,
+      other_user_id: otherUserID,
+      other_profile: otherUserID ? profiles.get(otherUserID) ?? null : null,
+    };
+  });
 }
 
-export async function getChatThread(threadID: string) {
+export async function getChatThread(threadID: string, userID?: string | null) {
   noStore();
 
   if (!isSupabaseConfigured()) {
@@ -445,9 +518,20 @@ export async function getChatThread(threadID: string) {
     return null;
   }
 
+  const otherUserID = userID
+    ? thread.initiator_id === userID
+      ? thread.pet_owner_id
+      : thread.pet_owner_id === userID
+        ? thread.initiator_id
+        : null
+    : null;
+  const profiles = otherUserID ? await getProfilesByIds([otherUserID]) : new Map<string, Profile>();
+
   return {
     thread,
     messages: messages ?? [],
+    other_user_id: otherUserID,
+    other_profile: otherUserID ? profiles.get(otherUserID) ?? null : null,
   };
 }
 

@@ -2,11 +2,43 @@ import { notFound } from "next/navigation";
 
 import { createBookingDraft, deleteServiceOffer, openServiceChat } from "@/app/actions";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { PetCard, ProfileSummary, ReviewHighlight, TrustBadge } from "@/components/product-ui";
 import { ButtonLink, PageHeader, Panel, SubmitButton } from "@/components/ui";
-import { PetCard, ReviewHighlight, TrustBadge } from "@/components/product-ui";
 import { getCurrentUser, getReviewSummary, getServiceOfferDetail } from "@/lib/data";
 import { getDictionary } from "@/lib/i18n";
 import { getRequestLocale } from "@/lib/i18n-server";
+
+function serviceDetailCopy(locale: "zh" | "en") {
+  return locale === "en"
+    ? {
+        eyebrow: "Service Detail",
+        fallbackTitle: "Service detail",
+        back: "Back to services",
+        provider: "Service provider",
+        area: "Service area",
+        time: "Availability",
+        price: "Pricing",
+        contact: "Contact",
+        book: "Start booking",
+        viewPet: "View pet profile",
+        noPetTitle: "This service is not linked to a pet profile",
+        noPetDetail: "Chat first to confirm the service target, experience, and safety details.",
+      }
+    : {
+        eyebrow: "服务详情",
+        fallbackTitle: "服务详情",
+        back: "返回服务广场",
+        provider: "服务者",
+        area: "服务区域",
+        time: "可约时间",
+        price: "价格方式",
+        contact: "发起联系",
+        book: "进入预约",
+        viewPet: "查看宠物档案",
+        noPetTitle: "这个服务没有绑定宠物档案",
+        noPetDetail: "可以先通过聊天确认具体服务对象、经验和安全信息。",
+      };
+}
 
 export default async function ServiceOfferDetailPage({
   params,
@@ -15,6 +47,7 @@ export default async function ServiceOfferDetailPage({
 }) {
   const { offerId } = await params;
   const locale = await getRequestLocale();
+  const copy = serviceDetailCopy(locale);
   const editorCopy = getDictionary(locale).editor;
   const [offer, reviewSummary, user] = await Promise.all([
     getServiceOfferDetail(offerId),
@@ -41,10 +74,10 @@ export default async function ServiceOfferDetailPage({
         </div>
       ) : null}
       <PageHeader
-        eyebrow="Service Detail"
-        title={offer.title ?? "服务详情"}
+        eyebrow={copy.eyebrow}
+        title={offer.title ?? copy.fallbackTitle}
         description={offer.intro}
-        action={<ButtonLink href="/app/match?tab=services" variant="secondary">返回服务广场</ButtonLink>}
+        action={<ButtonLink href="/app/match?tab=services" variant="secondary">{copy.back}</ButtonLink>}
       />
 
       <div className="grid gap-6 xl:grid-cols-[1fr_0.42fr]">
@@ -59,15 +92,15 @@ export default async function ServiceOfferDetailPage({
             </div>
             <div className="mt-6 grid gap-4 md:grid-cols-3">
               <div>
-                <p className="text-xs text-black/42">服务区域</p>
+                <p className="text-xs text-black/42">{copy.area}</p>
                 <p className="mt-1 font-semibold">{offer.service_area}</p>
               </div>
               <div>
-                <p className="text-xs text-black/42">可约时间</p>
+                <p className="text-xs text-black/42">{copy.time}</p>
                 <p className="mt-1 font-semibold">{offer.availability_summary}</p>
               </div>
               <div>
-                <p className="text-xs text-black/42">价格方式</p>
+                <p className="text-xs text-black/42">{copy.price}</p>
                 <p className="mt-1 font-semibold">{offer.price_mode}</p>
               </div>
             </div>
@@ -80,33 +113,34 @@ export default async function ServiceOfferDetailPage({
               <form action={openServiceChat}>
                 <input name="source_kind" type="hidden" value="offer" />
                 <input name="source_id" type="hidden" value={offer.id} />
-                <SubmitButton>发起联系</SubmitButton>
+                <SubmitButton>{copy.contact}</SubmitButton>
               </form>
               <form action={createBookingDraft}>
                 <input name="source_kind" type="hidden" value="offer" />
                 <input name="source_id" type="hidden" value={offer.id} />
-                <SubmitButton variant="secondary">进入预约</SubmitButton>
+                <SubmitButton variant="secondary">{copy.book}</SubmitButton>
               </form>
             </div>
           </Panel>
 
           {offer.related_pet ? (
-            <PetCard pet={offer.related_pet} href={`/app/match/pets/${offer.related_pet.id}`} ctaLabel="查看宠物档案" />
+            <PetCard locale={locale} pet={offer.related_pet} href={`/app/match/pets/${offer.related_pet.id}`} ctaLabel={copy.viewPet} />
           ) : (
             <Panel>
-              <h2 className="text-xl font-semibold">这个服务没有绑定宠物档案</h2>
-              <p className="mt-2 text-sm leading-6 text-black/58">可以先通过聊天确认具体服务对象、经验和安全信息。</p>
+              <h2 className="text-xl font-semibold">{copy.noPetTitle}</h2>
+              <p className="mt-2 text-sm leading-6 text-black/58">{copy.noPetDetail}</p>
             </Panel>
           )}
         </div>
 
         <div className="grid gap-4 xl:sticky xl:top-8 xl:self-start">
-          <ReviewHighlight summary={reviewSummary} />
-          <Panel>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#b14e31]">提供者</p>
-            <h2 className="mt-3 text-2xl font-semibold">{offer.provider_name}</h2>
-            <p className="mt-2 text-sm text-black/56">{offer.response_time_label}</p>
-          </Panel>
+          <ReviewHighlight locale={locale} summary={reviewSummary} />
+          <ProfileSummary
+            fallbackName={offer.provider_name}
+            locale={locale}
+            profile={offer.provider_profile}
+            roleLabel={copy.provider}
+          />
         </div>
       </div>
     </div>

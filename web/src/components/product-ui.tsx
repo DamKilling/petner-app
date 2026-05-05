@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { markNotificationRead, openNotification } from "@/app/actions";
 import { getDictionary, type Locale } from "@/lib/i18n";
 import { accentSoftClasses, trustToneClasses } from "@/lib/theme";
-import type { AppNotification, AppNotificationType, Booking, Pet, ReviewSummary, ServiceOffer, ServiceRequest } from "@/lib/types";
+import type { AppNotification, AppNotificationType, Booking, Pet, Profile, ReviewSummary, ServiceOffer, ServiceRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type Tone = keyof typeof trustToneClasses;
@@ -27,6 +27,108 @@ export function TrustBadge({
       <ShieldCheck className="size-3.5" />
       {label}
     </span>
+  );
+}
+
+function profileCopy(locale: Locale) {
+  return locale === "en"
+    ? {
+        fallbackName: "PetLife user",
+        cityFallback: "City not set",
+        bioFallback: "Profile not completed yet.",
+        verified: "Verified",
+        basic: "Profile visible",
+        unverified: "Not verified",
+        response: "Response",
+        rating: "Rating",
+        reviews: "reviews",
+      }
+    : {
+        fallbackName: "PetLife 用户",
+        cityFallback: "城市未填写",
+        bioFallback: "资料还没有完善。",
+        verified: "已认证",
+        basic: "资料可见",
+        unverified: "未认证",
+        response: "响应",
+        rating: "评分",
+        reviews: "条评价",
+      };
+}
+
+function profileInitial(profile: Profile | null | undefined, fallbackName: string) {
+  return (profile?.display_name || fallbackName).trim().slice(0, 1).toUpperCase();
+}
+
+export function ProfileSummary({
+  profile,
+  fallbackName,
+  roleLabel,
+  locale = "zh",
+  compact = false,
+  dark = false,
+  className,
+}: {
+  profile?: Profile | null;
+  fallbackName?: string;
+  roleLabel: string;
+  locale?: Locale;
+  compact?: boolean;
+  dark?: boolean;
+  className?: string;
+}) {
+  const copy = profileCopy(locale);
+  const displayName = profile?.display_name || fallbackName || copy.fallbackName;
+  const city = profile?.city || copy.cityFallback;
+  const verificationLabel =
+    profile?.verification_status === "verified"
+      ? copy.verified
+      : profile?.verification_status === "unverified"
+        ? copy.unverified
+        : copy.basic;
+  const responseTime = profile?.response_time_label;
+  const ratingText =
+    typeof profile?.rating_avg === "number" && typeof profile?.rating_count === "number"
+      ? `${profile.rating_avg.toFixed(1)} · ${profile.rating_count} ${copy.reviews}`
+      : null;
+
+  if (compact) {
+    return (
+      <div className={cn("flex min-w-0 items-center gap-3 rounded-2xl border px-3 py-2", dark ? "border-white/12 bg-white/8 text-white" : "border-black/8 bg-black/[0.025] text-[#2f241e]", className)}>
+        <div className={cn("flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold", dark ? "bg-white/14 text-white" : "bg-[#fff0e6] text-[#b74c30]")}>
+          {profileInitial(profile, displayName)}
+        </div>
+        <div className="min-w-0">
+          <p className={cn("truncate text-xs font-semibold", dark ? "text-white/58" : "text-black/45")}>{roleLabel}</p>
+          <p className="truncate text-sm font-semibold">{displayName}</p>
+          <p className={cn("truncate text-xs", dark ? "text-white/54" : "text-black/50")}>
+            {city}
+            {responseTime ? ` · ${responseTime}` : ""}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn("rounded-[1.5rem] border p-5", dark ? "border-white/12 bg-white/8 text-white" : "border-black/8 bg-white/82 text-[#2f241e]", className)}>
+      <div className="flex items-start gap-4">
+        <div className={cn("flex size-14 shrink-0 items-center justify-center rounded-2xl text-xl font-semibold", dark ? "bg-white/14 text-white" : "bg-[#fff0e6] text-[#b74c30]")}>
+          {profileInitial(profile, displayName)}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className={cn("text-xs font-semibold uppercase tracking-[0.22em]", dark ? "text-white/48" : "text-[#b14e31]")}>{roleLabel}</p>
+          <h3 className="mt-2 truncate text-2xl font-semibold">{displayName}</h3>
+          <p className={cn("mt-1 text-sm", dark ? "text-white/58" : "text-black/52")}>{city}</p>
+        </div>
+      </div>
+      <p className={cn("mt-4 text-sm leading-6", dark ? "text-white/62" : "text-black/62")}>{profile?.bio || copy.bioFallback}</p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <TrustBadge label={verificationLabel} tone={profile?.verification_status === "verified" ? "verified" : "neutral"} />
+        {responseTime ? <TrustBadge label={`${copy.response}: ${responseTime}`} tone="trust" /> : null}
+        {ratingText ? <TrustBadge label={`${copy.rating}: ${ratingText}`} tone="warm" /> : null}
+      </div>
+    </div>
   );
 }
 

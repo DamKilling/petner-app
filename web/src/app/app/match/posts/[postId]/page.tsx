@@ -3,13 +3,61 @@ import { notFound } from "next/navigation";
 
 import { addComment, deletePost, openChat, toggleLike } from "@/app/actions";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
+import { ProfileSummary, TrustBadge } from "@/components/product-ui";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
-import { TrustBadge } from "@/components/product-ui";
 import { ButtonLink, PageHeader, Panel, SubmitButton, TextArea } from "@/components/ui";
 import { getCurrentUser, getPet, getPost } from "@/lib/data";
 import { getDictionary } from "@/lib/i18n";
 import { getRequestLocale } from "@/lib/i18n-server";
 import { formatDate } from "@/lib/utils";
+
+function postDetailCopy(locale: "zh" | "en") {
+  return locale === "en"
+    ? {
+        back: "Back to community",
+        eyebrow: "Post Detail",
+        description: "Continue reading, commenting, or moving into chat from this post.",
+        author: "Posted by",
+        fallbackUser: "PetLife user",
+        petVisible: "Pet profile available",
+        chatSupported: "Chat supported",
+        unlike: "Unlike",
+        like: "Like",
+        startChat: "Start chat",
+        commentsTitle: "Comments",
+        commentsDetail: "Keep the conversation going before starting a higher-intent chat.",
+        noComments: "No comments yet. Be the first to reply.",
+        continueTitle: "Continue interaction",
+        continueDetail: "Move from this post into pet profiles, services, or chat.",
+        viewPet: "View pet profile",
+        viewServices: "View services",
+        commentFormTitle: "Add a comment",
+        commentBody: "Comment",
+        publishComment: "Publish comment",
+      }
+    : {
+        back: "返回社区广场",
+        eyebrow: "动态详情",
+        description: "在详情页继续阅读、评论，或自然转入聊天。",
+        author: "发帖人",
+        fallbackUser: "PetLife 用户",
+        petVisible: "宠物档案可查看",
+        chatSupported: "支持继续聊天",
+        unlike: "取消喜欢",
+        like: "喜欢",
+        startChat: "发起聊天",
+        commentsTitle: "评论区",
+        commentsDetail: "让社区互动继续发生，也让高意图关系自然转入聊天。",
+        noComments: "还没有评论，成为第一个回应的人。",
+        continueTitle: "继续互动",
+        continueDetail: "高意图关系可以直接从详情页走向档案与聊天。",
+        viewPet: "查看宠物档案",
+        viewServices: "看服务匹配",
+        commentFormTitle: "发表评论",
+        commentBody: "评论内容",
+        publishComment: "发布评论",
+      };
+}
 
 export default async function PostDetailPage({
   params,
@@ -18,6 +66,7 @@ export default async function PostDetailPage({
 }) {
   const { postId } = await params;
   const locale = await getRequestLocale();
+  const copy = postDetailCopy(locale);
   const editorCopy = getDictionary(locale).editor;
   const user = await getCurrentUser();
   const data = await getPost(postId, user?.id ?? "demo");
@@ -42,18 +91,18 @@ export default async function PostDetailPage({
         </div>
       ) : null}
       <PageHeader
-        action={<ButtonLink href="/app/match?tab=community" variant="secondary">返回社区广场</ButtonLink>}
-        eyebrow="Post Detail"
+        action={<ButtonLink href="/app/match?tab=community" variant="secondary">{copy.back}</ButtonLink>}
+        eyebrow={copy.eyebrow}
         title={`${data.post.pet_name} · ${data.post.topic}`}
-        description="在详情页继续阅读、评论和转化到聊天，不要让社区互动断在列表卡片上。"
+        description={copy.description}
       />
 
       <div className="grid gap-6 xl:grid-cols-[1fr_0.72fr]">
         <div className="grid gap-6">
           <Panel className="overflow-hidden bg-[#1f1916] text-white">
             <div className="flex flex-wrap items-center gap-2">
-              <TrustBadge label="宠物档案可查看" tone="verified" />
-              <TrustBadge label="支持继续聊天" tone="trust" />
+              <TrustBadge label={copy.petVisible} tone="verified" />
+              <TrustBadge label={copy.chatSupported} tone="trust" />
             </div>
             <p className="mt-5 text-sm text-white/52">
               {data.post.city} · {formatDate(data.post.created_at)}
@@ -69,12 +118,12 @@ export default async function PostDetailPage({
             <div className="mt-6 flex flex-wrap gap-3">
               <form action={toggleLike}>
                 <input name="post_id" type="hidden" value={data.post.id} />
-                <SubmitButton>{data.liked ? "取消喜欢" : "喜欢"} · {data.likes}</SubmitButton>
+                <SubmitButton>{data.liked ? copy.unlike : copy.like} · {data.likes}</SubmitButton>
               </form>
               {relatedPet ? (
                 <form action={openChat}>
                   <input name="pet_id" type="hidden" value={relatedPet.id} />
-                  <SubmitButton variant="secondary">发起聊天</SubmitButton>
+                  <SubmitButton variant="secondary">{copy.startChat}</SubmitButton>
                 </form>
               ) : null}
             </div>
@@ -84,52 +133,62 @@ export default async function PostDetailPage({
             <div className="flex items-center gap-3">
               <MessageCircleMore className="size-5 text-[#b14e31]" />
               <div>
-                <h2 className="text-2xl font-semibold">评论区</h2>
-                <p className="mt-1 text-sm text-black/56">让社区互动继续发生，也让高意图关系自然转入聊天。</p>
+                <h2 className="text-2xl font-semibold">{copy.commentsTitle}</h2>
+                <p className="mt-1 text-sm text-black/56">{copy.commentsDetail}</p>
               </div>
             </div>
             <div className="mt-6 grid gap-3">
               {data.comments.length ? (
                 data.comments.map((comment) => (
                   <div key={comment.id} className="rounded-[1.35rem] border border-black/8 bg-white p-5">
-                    <p className="text-sm leading-7 text-black/70">{comment.body}</p>
+                    <p className="text-sm font-semibold text-[#2f241e]">
+                      {comment.author_profile?.display_name || copy.fallbackUser}
+                    </p>
+                    <p className="mt-2 text-sm leading-7 text-black/70">{comment.body}</p>
                     <p className="mt-3 text-xs text-black/42">{formatDate(comment.created_at)}</p>
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-black/50">还没有评论，成为第一个回应的人。</p>
+                <p className="text-sm text-black/50">{copy.noComments}</p>
               )}
             </div>
           </Panel>
         </div>
 
         <div className="grid gap-6 xl:sticky xl:top-8 xl:self-start">
+          <ProfileSummary
+            fallbackName={copy.fallbackUser}
+            locale={locale}
+            profile={data.author_profile}
+            roleLabel={copy.author}
+          />
+
           <Panel>
             <div className="flex items-center gap-3">
               <ShieldCheck className="size-5 text-[#4b7b5b]" />
               <div>
-                <h2 className="text-xl font-semibold">继续互动</h2>
-                <p className="mt-1 text-sm text-black/56">高意图关系应能直接从详情页走向档案与聊天。</p>
+                <h2 className="text-xl font-semibold">{copy.continueTitle}</h2>
+                <p className="mt-1 text-sm text-black/56">{copy.continueDetail}</p>
               </div>
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
               {relatedPet ? (
                 <ButtonLink href={`/app/match/pets/${relatedPet.id}`} variant="secondary">
-                  查看宠物档案
+                  {copy.viewPet}
                 </ButtonLink>
               ) : null}
               <ButtonLink href="/app/match?tab=services" variant="secondary">
-                看服务匹配
+                {copy.viewServices}
               </ButtonLink>
             </div>
           </Panel>
 
           <Panel>
-            <h2 className="text-2xl font-semibold">发表评论</h2>
+            <h2 className="text-2xl font-semibold">{copy.commentFormTitle}</h2>
             <form action={addComment} className="mt-6 grid gap-4">
               <input name="post_id" type="hidden" value={data.post.id} />
-              <TextArea label="评论内容" name="body" required />
-              <SubmitButton>发布评论</SubmitButton>
+              <TextArea label={copy.commentBody} name="body" required />
+              <SubmitButton>{copy.publishComment}</SubmitButton>
             </form>
           </Panel>
         </div>
