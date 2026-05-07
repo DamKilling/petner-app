@@ -229,13 +229,13 @@ export function PetCard({
   const persona = petPersona(pet);
 
   return (
-    <article className="overflow-hidden rounded-[1.8rem] border border-black/10 bg-white/82 shadow-[0_18px_50px_rgba(47,35,22,0.06)]">
-      <div className="grid gap-4 p-5 md:p-6">
-        <div className="flex items-start gap-4">
+    <article className="min-w-0 overflow-hidden rounded-[1.8rem] border border-black/10 bg-white/82 shadow-[0_18px_50px_rgba(47,35,22,0.06)]">
+      <div className={cn("grid gap-4 p-5", compact ? "md:p-5" : "md:p-6")}>
+        <div className={cn("flex min-w-0 items-start gap-4", compact ? "flex-col" : "")}>
           <div
             className={cn(
               "flex shrink-0 items-center justify-center overflow-hidden rounded-[1.35rem] text-3xl",
-              compact ? "size-16" : "size-20",
+              compact ? "size-16 self-start" : "size-20",
               accentSoftClasses[pet.accent],
             )}
             style={pet.avatar_url ? { backgroundImage: `url(${pet.avatar_url})`, backgroundPosition: "center", backgroundSize: "cover" } : undefined}
@@ -244,12 +244,12 @@ export function PetCard({
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-xl font-semibold tracking-tight">{pet.name}</h3>
-              <span className={cn("rounded-full px-2.5 py-1 text-[11px] font-semibold", accentSoftClasses[pet.accent])}>
+              <h3 className={cn("min-w-0 break-words font-semibold tracking-tight", compact ? "text-lg leading-tight" : "text-xl")}>{pet.name}</h3>
+              <span className={cn("max-w-full rounded-full px-2.5 py-1 text-[11px] font-semibold leading-relaxed", compact ? "break-words" : "", accentSoftClasses[pet.accent])}>
                 {pet.breed}
               </span>
             </div>
-            <p className="mt-1 text-sm text-black/52">
+            <p className="mt-1 break-words text-sm text-black/52">
               {pet.city} · {pet.age_text} · {pet.sex === "female" ? copy.female : pet.sex === "male" ? copy.male : copy.unknownSex}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -260,16 +260,16 @@ export function PetCard({
           </div>
         </div>
 
-        <p className="text-sm leading-6 text-black/64">{pet.bio}</p>
+        <p className={cn("break-words text-sm leading-6 text-black/64", compact ? "line-clamp-3" : "")}>{pet.bio}</p>
 
         <div className="flex flex-wrap gap-2">
           {persona.map((item) => (
-            <span key={item} className="rounded-full bg-black/[0.04] px-3 py-1 text-xs text-black/60">
+            <span key={item} className="max-w-full break-words rounded-full bg-black/[0.04] px-3 py-1 text-xs text-black/60">
               {item}
             </span>
           ))}
           {pet.energy_level ? (
-            <span className="rounded-full bg-[#9bb89a]/14 px-3 py-1 text-xs text-[#4e6950]">
+            <span className="max-w-full break-words rounded-full bg-[#9bb89a]/14 px-3 py-1 text-xs text-[#4e6950]">
               {copy.energy}: {pet.energy_level === "high" ? copy.energyHigh : pet.energy_level === "medium" ? copy.energyMedium : copy.energyLow}
             </span>
           ) : null}

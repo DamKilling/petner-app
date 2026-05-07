@@ -123,7 +123,7 @@ export default async function MatchPage({
       </section>
 
       {activeTab === "community" ? (
-        <div className="grid gap-6 xl:grid-cols-[0.74fr_1fr_0.38fr]">
+        <div className="grid gap-6 xl:grid-cols-[0.72fr_minmax(0,1fr)_minmax(18rem,0.42fr)]">
           <div className="grid gap-4 xl:sticky xl:top-8 xl:self-start">
             <Panel>
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#b14e31]">{copy.postComposerKicker}</p>
