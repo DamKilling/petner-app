@@ -3,7 +3,7 @@ import Foundation
 enum AppTab: Hashable {
     case home
     case tree
-    case videos
+    case services
     case match
     case profile
 }
@@ -24,6 +24,17 @@ enum UploadStatus: String, CaseIterable, Hashable, Sendable, Codable {
     case published = "已发布"
 }
 
+enum PostMediaKind: String, CaseIterable, Hashable, Sendable, Codable {
+    case image = "图片"
+    case video = "视频"
+}
+
+struct PostMediaAttachment: Hashable, Sendable, Codable {
+    var kind: PostMediaKind
+    var localAssetPath: String
+    var displayName: String
+}
+
 struct UserAccount: Identifiable, Hashable, Sendable, Codable {
     let id: UUID
     var displayName: String
@@ -41,9 +52,19 @@ struct HolidayMemory: Identifiable, Hashable, Sendable, Codable {
     var ornament: String
     var accent: AccentToken
     var story: String
+    var mediaKind: PostMediaKind
+    var mediaAssetPath: String?
+    var mediaDisplayName: String?
+    var notes: [MemoryNote]
     var photoAssetPath: String?
     var audioAssetPath: String?
     var audioDisplayName: String?
+}
+
+struct MemoryNote: Identifiable, Hashable, Sendable, Codable {
+    let id: UUID
+    var body: String
+    var createdAtText: String
 }
 
 struct UploadVideo: Identifiable, Hashable, Sendable, Codable {
@@ -149,16 +170,29 @@ struct PetDraft: Hashable, Sendable {
 }
 
 struct PostDraft: Hashable, Sendable {
+    var id: UUID = UUID()
     var topic: String = "同城交友"
     var city: String = "上海"
     var content: String = ""
     var tagsText: String = "遛宠 社交"
+    var mediaKind: PostMediaKind = .image
+    var mediaAssetPath: String?
+    var mediaDisplayName: String = ""
 
     var tags: [String] {
         tagsText
             .split(separator: " ")
             .map { String($0) }
             .filter { !$0.isEmpty }
+    }
+
+    var mediaAttachment: PostMediaAttachment? {
+        guard let mediaAssetPath else { return nil }
+        return PostMediaAttachment(
+            kind: mediaKind,
+            localAssetPath: mediaAssetPath,
+            displayName: mediaDisplayName.isEmpty ? mediaKind.rawValue : mediaDisplayName
+        )
     }
 }
 
@@ -178,12 +212,16 @@ struct VideoDraft: Hashable, Sendable {
 }
 
 struct MemoryDraft: Hashable, Sendable {
+    var id: UUID = UUID()
     var title: String = ""
     var subtitle: String = ""
     var dateText: String = "2026.04.02"
     var story: String = ""
     var ornament: String = "star.fill"
     var accent: AccentToken = .pine
+    var mediaKind: PostMediaKind = .image
+    var mediaAssetPath: String?
+    var mediaDisplayName: String?
     var photoAssetPath: String?
     var audioAssetPath: String?
     var audioDisplayName: String?

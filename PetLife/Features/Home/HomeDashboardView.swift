@@ -9,7 +9,6 @@ struct HomeDashboardView: View {
                 HeroBanner(userName: appModel.currentUser?.displayName ?? "朋友")
                 QuickStatsRow(appModel: appModel)
                 ShortcutGrid(appModel: appModel)
-                RoadmapCard()
             }
             .padding(20)
         }
@@ -25,7 +24,7 @@ private struct HeroBanner: View {
         ZStack(alignment: .bottomTrailing) {
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .fill(PetTheme.dashboardGradient)
-                .frame(height: 286)
+                .frame(height: 320)
 
             PetHeroArtwork(name: "hero-home", width: 154)
                 .padding(.trailing, 18)
@@ -39,11 +38,11 @@ private struct HeroBanner: View {
                         .lineLimit(2)
                         .minimumScaleFactor(0.85)
 
-                    Text("现在我们已经有账号、宠物档案、视频队列、动态流和聊天入口，可以继续往真实产品落地。")
+                    Text("在 PetLife，每一只萌宠都有属于自己的数字家园。从记录成长的温情档案，到捕捉瞬间的萌宠动态，我们为你连接同频的宠友，一起分享爱宠生活的点点滴滴。")
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.88))
                         .fixedSize(horizontal: false, vertical: true)
-                        .lineLimit(4)
+                        .lineLimit(6)
 
                     HStack(spacing: 12) {
                         TagPill(label: "登录可用")
@@ -64,7 +63,7 @@ private struct QuickStatsRow: View {
     var body: some View {
         HStack(spacing: 12) {
             DashboardStatCard(value: "\(appModel.ownedPets.count)", label: "我的宠物")
-            DashboardStatCard(value: "\(appModel.pendingVideos.count)", label: "待处理视频")
+            DashboardStatCard(value: "\(appModel.holidayMemories.count)", label: "成长记录")
             DashboardStatCard(value: "\(appModel.chatThreads.count)", label: "聊天线程")
         }
     }
@@ -89,16 +88,6 @@ private struct ShortcutGrid: View {
             }
 
             NavigationLink {
-                VideoUploadView(appModel: appModel)
-            } label: {
-                ShortcutCard(
-                    imageName: "feature-video",
-                    title: "继续发布视频",
-                    detail: "从本地相册选视频，进入上传或审核状态。"
-                )
-            }
-
-            NavigationLink {
                 PetMatchView(appModel: appModel)
             } label: {
                 ShortcutCard(
@@ -109,31 +98,25 @@ private struct ShortcutGrid: View {
             }
 
             NavigationLink {
-                ChristmasTreeAlbumView(appModel: appModel)
+                PetServicesView()
+            } label: {
+                ShortcutCard(
+                    imageName: "feature-profile",
+                    title: "预约宠物服务",
+                    detail: "找寄养、美容和医院预约，先看服务条件再沟通。"
+                )
+            }
+
+            NavigationLink {
+                AlbumTreeView(appModel: appModel)
             } label: {
                 ShortcutCard(
                     imageName: "feature-tree",
                     title: "整理成长相册树",
-                    detail: "把照片故事和里程碑做成可分享的树形时间线。"
+                    detail: "把照片、视频和文字整理成宠物成长时间轴。"
                 )
             }
         }
-    }
-}
-
-private struct RoadmapCard: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("下一步接真实后端")
-                .font(.title3.weight(.semibold))
-
-            Text("当前代码已经把产品状态集中到 `AppModel + backend actor`。后续可替换成 Firebase Auth、Supabase Storage、动态表和消息表，而不需要重写整个 UI。")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(20)
-        .background(.white, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
     }
 }
 

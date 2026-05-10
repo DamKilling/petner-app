@@ -14,7 +14,7 @@ struct AuthenticationView: View {
                     Text("开始你的 PetLife")
                         .font(.title2.weight(.bold))
 
-                    Text("先建立账号，我们就能把宠物档案、视频、动态和聊天都串成一条完整体验。")
+                    Text("先建立账号，我们就能把宠物档案、成长相册树、动态和聊天都串成一条完整体验。")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
@@ -74,7 +74,7 @@ private struct AuthHero: View {
                         .lineLimit(2)
                         .minimumScaleFactor(0.86)
 
-                    Text("把成长记录、视频内容、同城互动和聊天入口收进一个产品壳里，这一版已经具备真实流程的雏形。")
+                    Text("把成长记录、相册树、同城互动和聊天入口收进一个产品壳里，这一版已经具备真实流程的雏形。")
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.85))
                         .fixedSize(horizontal: false, vertical: true)
@@ -98,7 +98,7 @@ private struct ValueGrid: View {
     var body: some View {
         VStack(spacing: 14) {
             ValueCard(iconName: "feature-profile", title: "宠物档案", detail: "建立宠物基础资料、关系偏好和社交标签。")
-            ValueCard(iconName: "feature-video", title: "视频发布", detail: "本地选视频、进入上传队列，再扩展到云端存储。")
+            ValueCard(iconName: "feature-tree", title: "成长相册树", detail: "发布照片、视频和文字，沉淀宠物成长时间线。")
             ValueCard(iconName: "feature-social", title: "动态和聊天", detail: "动态流承接曝光，聊天承接意向沟通。")
         }
     }

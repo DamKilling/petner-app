@@ -40,7 +40,7 @@ struct RootTabView: View {
             .tag(AppTab.home)
 
             NavigationStack {
-                ChristmasTreeAlbumView(appModel: appModel)
+                AlbumTreeView(appModel: appModel)
             }
             .tabItem {
                 Label {
@@ -52,16 +52,16 @@ struct RootTabView: View {
             .tag(AppTab.tree)
 
             NavigationStack {
-                VideoUploadView(appModel: appModel)
+                PetServicesView()
             }
             .tabItem {
                 Label {
-                    Text("视频")
+                    Text("服务")
                 } icon: {
-                    PetTabIcon(name: "tab-video")
+                    Image(systemName: "cross.case.fill")
                 }
             }
-            .tag(AppTab.videos)
+            .tag(AppTab.services)
 
             NavigationStack {
                 PetMatchView(appModel: appModel)

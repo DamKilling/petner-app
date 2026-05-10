@@ -1,4 +1,3 @@
-import CloudKit
 import Foundation
 import Observation
 
@@ -21,6 +20,10 @@ enum MemoryAssetStore {
         return relativePath
     }
 
+    static func saveBinaryData(_ data: Data, preferredExtension: String) throws -> String {
+        try saveImageData(data, preferredExtension: preferredExtension)
+    }
+
     static func copyImportedFile(
         from sourceURL: URL,
         preferredExtension: String? = nil
@@ -38,15 +41,21 @@ enum MemoryAssetStore {
         return relativePath
     }
 
-    static func importCloudAsset(_ asset: CKAsset?, fallbackExtension: String) -> String? {
-        guard let sourceURL = asset?.fileURL else {
+    static func existingRelativePath(fileName: String) -> String? {
+        guard let directory = try? directoryURL() else {
             return nil
         }
 
-        return try? copyImportedFile(
-            from: sourceURL,
-            preferredExtension: sourceURL.pathExtension.isEmpty ? fallbackExtension : nil
-        )
+        let sanitizedFileName = fileName.replacingOccurrences(of: "/", with: "_")
+        let candidateURL = directory.appendingPathComponent(sanitizedFileName)
+        return FileManager.default.fileExists(atPath: candidateURL.path) ? sanitizedFileName : nil
+    }
+
+    static func saveDownloadedData(_ data: Data, fileName: String) throws -> String {
+        let sanitizedFileName = fileName.replacingOccurrences(of: "/", with: "_")
+        let destinationURL = try directoryURL().appendingPathComponent(sanitizedFileName)
+        try data.write(to: destinationURL, options: .atomic)
+        return sanitizedFileName
     }
 
     private static func directoryURL() throws -> URL {
@@ -91,8 +100,12 @@ enum PetBackendFactory {
             return InMemoryPetBackend()
         }
 
-        let containerID = Bundle.main.object(forInfoDictionaryKey: "CLOUDKIT_CONTAINER_ID") as? String
-        return CloudKitPetBackend(containerIdentifier: containerID)
+        guard let config = SupabaseConfig.load() else {
+            print("[PetLife] Supabase config missing, switched to InMemory fallback.")
+            return InMemoryPetBackend()
+        }
+
+        return SupabasePetBackend(config: config)
     }
 }
 
@@ -167,13 +180,17 @@ actor InMemoryPetBackend: PetBackend {
 
     func addMemory(_ draft: MemoryDraft) async -> BootstrapPayload {
         let memory = HolidayMemory(
-            id: UUID(),
+            id: draft.id,
             title: draft.title,
             subtitle: draft.subtitle,
             dateText: draft.dateText,
             ornament: draft.ornament,
             accent: draft.accent,
             story: draft.story,
+            mediaKind: draft.mediaKind,
+            mediaAssetPath: draft.mediaAssetPath ?? draft.photoAssetPath,
+            mediaDisplayName: draft.mediaDisplayName,
+            notes: [],
             photoAssetPath: draft.photoAssetPath,
             audioAssetPath: draft.audioAssetPath,
             audioDisplayName: draft.audioDisplayName
@@ -201,7 +218,7 @@ actor InMemoryPetBackend: PetBackend {
     func createPost(_ draft: PostDraft, user: UserAccount, petName: String) async -> BootstrapPayload {
         let relatedPetID = ownedPets.first(where: { $0.name == petName })?.id
         let post = FeedPost(
-            id: UUID(),
+            id: draft.id,
             relatedPetID: relatedPetID,
             authorName: user.displayName,
             petName: petName,
@@ -366,35 +383,47 @@ actor InMemoryPetBackend: PetBackend {
             HolidayMemory(
                 id: UUID(),
                 title: "初雪见面",
-                subtitle: "把领养那天的照片挂上树尖，像点亮了新的家庭故事。",
+                subtitle: "领养那天的第一张照片，点亮了新的家庭故事。",
                 dateText: "2025.12.03",
                 ornament: "sparkles",
                 accent: .ember,
                 story: "我们第一次见面是在下雪天。它从航空箱里探出头时很安静，但那一瞬间我知道它要成为家里的一员。",
+                mediaKind: .image,
+                mediaAssetPath: nil,
+                mediaDisplayName: nil,
+                notes: [],
                 photoAssetPath: nil,
                 audioAssetPath: nil,
                 audioDisplayName: nil
             ),
             HolidayMemory(
                 id: UUID(),
-                title: "第一件圣诞毛衣",
-                subtitle: "记录宠物成长节点，每一张都能挂成一个节日愿望。",
+                title: "第一次穿新衣服",
+                subtitle: "记录宠物成长节点，每一张照片都是时间线上的小坐标。",
                 dateText: "2025.12.10",
                 ornament: "gift.fill",
                 accent: .pine,
-                story: "第一次试穿圣诞毛衣，它居然没有挣扎，还会自己走到圣诞树前找镜头。",
+                story: "第一次试穿新衣服，它居然没有挣扎，还会自己走到镜头前等我们拍照。",
+                mediaKind: .image,
+                mediaAssetPath: nil,
+                mediaDisplayName: nil,
+                notes: [],
                 photoAssetPath: nil,
                 audioAssetPath: nil,
                 audioDisplayName: nil
             ),
             HolidayMemory(
                 id: UUID(),
-                title: "全家福夜灯",
-                subtitle: "把视频、语音和照片组合成会发光的树枝故事线。",
+                title: "第一次拍全家福",
+                subtitle: "把视频、照片和文字组合成一条完整的成长时间线。",
                 dateText: "2025.12.24",
                 ornament: "star.fill",
                 accent: .peach,
-                story: "那一晚我们录了视频、留下了语音祝福，也第一次把宠物成长故事整理成了一个完整相册。",
+                story: "那一晚我们录了视频，也第一次把宠物成长故事整理成了一个完整相册。",
+                mediaKind: .video,
+                mediaAssetPath: nil,
+                mediaDisplayName: nil,
+                notes: [],
                 photoAssetPath: nil,
                 audioAssetPath: nil,
                 audioDisplayName: nil
@@ -485,7 +514,7 @@ actor InMemoryPetBackend: PetBackend {
                 petName: "Dumpling",
                 topic: "活动组队",
                 city: "苏州",
-                content: "有没有家庭想一起拍圣诞树主题写真和短视频？可以组个小型宠物节日局。",
+                content: "有没有家庭想一起拍成长主题写真和短视频？可以组个小型宠物日常记录局。",
                 tags: ["写真", "短视频", "节日"],
                 likes: 87,
                 comments: [],
@@ -518,196 +547,401 @@ actor InMemoryPetBackend: PetBackend {
     }
 }
 
-private func queryAllRecords(in database: CKDatabase, recordType: String) async throws -> [CKRecord] {
-    try await withCheckedThrowingContinuation { continuation in
-        let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))
-        var records: [CKRecord] = []
-        var didResume = false
+private enum SupabaseTable {
+    static let userAccounts = "user_accounts"
+    static let ownedPets = "owned_pets"
+    static let holidayMemories = "holiday_memories"
+    static let uploadVideos = "upload_videos"
+    static let feedPosts = "feed_posts"
+    static let postComments = "post_comments"
+    static let chatThreads = "chat_threads"
+    static let chatMessages = "chat_messages"
+}
 
-        func resumeOnce(_ result: Result<[CKRecord], Error>) {
-            guard !didResume else { return }
-            didResume = true
-            continuation.resume(with: result)
+private enum SupabaseDateCodec {
+    private static let fractionalFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    private static let fallbackFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
+    static func string(from date: Date) -> String {
+        fractionalFormatter.string(from: date)
+    }
+
+    static func date(from value: String?) -> Date {
+        guard let value else { return .distantPast }
+        if let date = fractionalFormatter.date(from: value) {
+            return date
         }
-
-        func run(cursor: CKQueryOperation.Cursor?) {
-            let operation = cursor.map(CKQueryOperation.init(cursor:)) ?? CKQueryOperation(query: query)
-            operation.resultsLimit = CKQueryOperation.maximumResults
-            operation.recordFetchedBlock = { record in
-                records.append(record)
-            }
-            operation.queryCompletionBlock = { nextCursor, error in
-                if let error {
-                    resumeOnce(.failure(error))
-                    return
-                }
-
-                if let nextCursor {
-                    run(cursor: nextCursor)
-                } else {
-                    resumeOnce(.success(records))
-                }
-            }
-            database.add(operation)
+        if let date = fallbackFormatter.date(from: value) {
+            return date
         }
-
-        run(cursor: nil)
+        return .distantPast
     }
 }
 
-private func applyRecordChanges(
-    in database: CKDatabase,
-    saving records: [CKRecord],
-    deleting recordIDs: [CKRecord.ID]
-) async throws {
-    guard !records.isEmpty || !recordIDs.isEmpty else { return }
+private struct SupabaseConfig: Sendable {
+    let projectURL: URL
+    let anonKey: String
+    let mediaBucket: String
+    let publicMediaBucket: Bool
 
-    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-        let operation = CKModifyRecordsOperation(
-            recordsToSave: records.isEmpty ? nil : records,
-            recordIDsToDelete: recordIDs.isEmpty ? nil : recordIDs
+    static func load() -> SupabaseConfig? {
+        guard
+            let rawURL = value(for: "SUPABASE_URL"),
+            let projectURL = URL(string: rawURL),
+            let anonKey = value(for: "SUPABASE_ANON_KEY")
+        else {
+            return nil
+        }
+
+        let mediaBucket = value(for: "SUPABASE_MEDIA_BUCKET") ?? "petlife-media"
+        let publicMediaBucket = (value(for: "SUPABASE_MEDIA_PUBLIC") ?? "YES").lowercased() != "no"
+
+        return SupabaseConfig(
+            projectURL: projectURL,
+            anonKey: anonKey,
+            mediaBucket: mediaBucket,
+            publicMediaBucket: publicMediaBucket
         )
-        operation.savePolicy = .allKeys
-        operation.isAtomic = false
-        operation.modifyRecordsCompletionBlock = { _, _, error in
-            if let error {
-                continuation.resume(throwing: error)
-            } else {
-                continuation.resume(returning: ())
+    }
+
+    private static func value(for key: String) -> String? {
+        if let environmentValue = ProcessInfo.processInfo.environment[key]?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !environmentValue.isEmpty {
+            return environmentValue
+        }
+
+        if let plistValue = Bundle.main.object(forInfoDictionaryKey: key) as? String {
+            let trimmed = plistValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        }
+
+        return nil
+    }
+}
+
+private enum LocalSessionStore {
+    private static let activeUserKey = "petlife.activeUserID"
+
+    static func loadActiveUserID() -> UUID? {
+        guard let rawValue = UserDefaults.standard.string(forKey: activeUserKey) else {
+            return nil
+        }
+        return UUID(uuidString: rawValue)
+    }
+
+    static func saveActiveUserID(_ userID: UUID?) {
+        if let userID {
+            UserDefaults.standard.set(userID.uuidString, forKey: activeUserKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: activeUserKey)
+        }
+    }
+}
+
+private struct SupabaseError: LocalizedError, Sendable {
+    let message: String
+
+    var errorDescription: String? {
+        message
+    }
+}
+
+private struct SupabaseRESTClient: Sendable {
+    enum StorageMode {
+        case upload
+        case authenticatedDownload
+        case publicDownload
+    }
+
+    private let config: SupabaseConfig
+    private let session = URLSession.shared
+
+    init(config: SupabaseConfig) {
+        self.config = config
+    }
+
+    func select<T: Decodable>(
+        _ type: T.Type,
+        from table: String,
+        filters: [URLQueryItem] = [],
+        limit: Int? = nil
+    ) async throws -> [T] {
+        var queryItems = filters
+        queryItems.append(URLQueryItem(name: "select", value: "*"))
+        if let limit {
+            queryItems.append(URLQueryItem(name: "limit", value: String(limit)))
+        }
+
+        var request = URLRequest(url: try restURL(table: table, queryItems: queryItems))
+        request.httpMethod = "GET"
+        let data = try await perform(request)
+
+        if data.isEmpty {
+            return []
+        }
+
+        return try JSONDecoder().decode([T].self, from: data)
+    }
+
+    func insert<T: Encodable>(_ value: T, into table: String) async throws {
+        var request = URLRequest(url: try restURL(table: table, queryItems: []))
+        request.httpMethod = "POST"
+        request.httpBody = try JSONEncoder().encode(value)
+        request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+        _ = try await perform(request)
+    }
+
+    func insertMany<T: Encodable>(_ values: [T], into table: String) async throws {
+        guard !values.isEmpty else { return }
+
+        var request = URLRequest(url: try restURL(table: table, queryItems: []))
+        request.httpMethod = "POST"
+        request.httpBody = try JSONEncoder().encode(values)
+        request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+        _ = try await perform(request)
+    }
+
+    func update<T: Encodable>(_ value: T, table: String, filters: [URLQueryItem]) async throws {
+        var request = URLRequest(url: try restURL(table: table, queryItems: filters))
+        request.httpMethod = "PATCH"
+        request.httpBody = try JSONEncoder().encode(value)
+        request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+        _ = try await perform(request)
+    }
+
+    func delete(from table: String, filters: [URLQueryItem]) async throws {
+        var request = URLRequest(url: try restURL(table: table, queryItems: filters))
+        request.httpMethod = "DELETE"
+        request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+        _ = try await perform(request)
+    }
+
+    func uploadObject(data: Data, path: String, contentType: String) async throws {
+        var request = URLRequest(url: try storageURL(path: path, mode: .upload))
+        request.httpMethod = "POST"
+        request.httpBody = data
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        request.setValue("true", forHTTPHeaderField: "x-upsert")
+        _ = try await perform(request)
+    }
+
+    func downloadObject(path: String) async throws -> Data {
+        let mode: StorageMode = config.publicMediaBucket ? .publicDownload : .authenticatedDownload
+        var request = URLRequest(url: try storageURL(path: path, mode: mode))
+        request.httpMethod = "GET"
+
+        if mode == .publicDownload {
+            request.setValue(config.anonKey, forHTTPHeaderField: "apikey")
+        }
+
+        return try await perform(request, includeJSONHeaders: mode != .publicDownload)
+    }
+
+    private func restURL(table: String, queryItems: [URLQueryItem]) throws -> URL {
+        let baseURL = config.projectURL
+            .appendingPathComponent("rest")
+            .appendingPathComponent("v1")
+            .appendingPathComponent(table)
+
+        guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
+            throw SupabaseError(message: "无法生成 Supabase 请求地址。")
+        }
+
+        components.queryItems = queryItems.isEmpty ? nil : queryItems
+        guard let url = components.url else {
+            throw SupabaseError(message: "无法生成 Supabase 请求地址。")
+        }
+
+        return url
+    }
+
+    private func storageURL(path: String, mode: StorageMode) throws -> URL {
+        var url = config.projectURL
+            .appendingPathComponent("storage")
+            .appendingPathComponent("v1")
+            .appendingPathComponent("object")
+
+        switch mode {
+        case .upload:
+            break
+        case .authenticatedDownload:
+            url = url.appendingPathComponent("authenticated")
+        case .publicDownload:
+            url = url.appendingPathComponent("public")
+        }
+
+        url = url.appendingPathComponent(config.mediaBucket)
+        for segment in path.split(separator: "/") {
+            url = url.appendingPathComponent(String(segment))
+        }
+        return url
+    }
+
+    private func perform(_ request: URLRequest, includeJSONHeaders: Bool = true) async throws -> Data {
+        var request = request
+        request.setValue(config.anonKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(config.anonKey)", forHTTPHeaderField: "Authorization")
+        if includeJSONHeaders {
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            if request.value(forHTTPHeaderField: "Content-Type") == nil, request.httpMethod != "GET" {
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             }
         }
-        database.add(operation)
+
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SupabaseError(message: "Supabase 没有返回有效的 HTTP 响应。")
+        }
+
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            throw SupabaseError(message: errorMessage(from: data, statusCode: httpResponse.statusCode))
+        }
+
+        return data
+    }
+
+    private func errorMessage(from data: Data, statusCode: Int) -> String {
+        guard
+            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let message = object["message"] as? String ?? object["error_description"] as? String ?? object["error"] as? String
+        else {
+            let plainText = String(decoding: data, as: UTF8.self)
+            return plainText.isEmpty ? "Supabase 请求失败，状态码 \(statusCode)。" : plainText
+        }
+
+        return message
     }
 }
 
-private func chunked<T>(_ values: [T], size: Int) -> [[T]] {
-    guard size > 0, !values.isEmpty else { return [] }
-
-    var result: [[T]] = []
-    result.reserveCapacity((values.count + size - 1) / size)
-
-    var index = 0
-    while index < values.count {
-        let nextIndex = min(index + size, values.count)
-        result.append(Array(values[index..<nextIndex]))
-        index = nextIndex
-    }
-
-    return result
+private struct UserRow: Codable, Sendable {
+    let id: UUID
+    var display_name: String
+    var phone: String
+    var city: String
+    var bio: String
+    var avatar_symbol: String
+    var created_at: String
+    var updated_at: String
 }
 
-actor CloudKitPetBackend: PetBackend {
-    private enum RecordType {
-        static let session = "PLSession"
-        static let userAccount = "PLUserAccount"
-        static let ownedPet = "PLOwnedPet"
-        static let holidayMemory = "PLHolidayMemory"
-        static let uploadVideo = "PLUploadVideo"
-        static let feedPost = "PLFeedPost"
-        static let postComment = "PLPostComment"
-        static let chatThread = "PLChatThread"
-        static let chatMessage = "PLChatMessage"
-    }
+private struct OwnedPetRow: Codable, Sendable {
+    let id: UUID
+    let user_id: UUID
+    var name: String
+    var species: String
+    var breed: String
+    var age_text: String
+    var city: String
+    var bio: String
+    var interests: [String]
+    var looking_for: String
+    var accent: String
+    var owner_name: String
+    var vaccinated: Bool
+    var created_at: String
+    var updated_at: String
+}
 
-    private enum Prefix {
-        static let userAccount = "user"
-        static let ownedPet = "pet"
-        static let holidayMemory = "memory"
-        static let uploadVideo = "video"
-        static let feedPost = "post"
-        static let postComment = "comment"
-        static let chatThread = "thread"
-        static let chatMessage = "message"
-    }
+private struct HolidayMemoryRow: Codable, Sendable {
+    let id: UUID
+    let user_id: UUID
+    var title: String
+    var subtitle: String
+    var date_text: String
+    var ornament: String
+    var accent: String
+    var story: String
+    var photo_storage_path: String?
+    var audio_storage_path: String?
+    var audio_display_name: String?
+    var created_at: String
+    var updated_at: String
+}
 
-    private enum Field {
-        static let activeUserID = "activeUserID"
-        static let userID = "userID"
-        static let createdAt = "createdAt"
-        static let updatedAt = "updatedAt"
+private struct UploadVideoRow: Codable, Sendable {
+    let id: UUID
+    let user_id: UUID
+    var title: String
+    var duration: String
+    var caption: String
+    var tags: [String]
+    var status: String
+    var selected_asset_count: Int
+    var accent: String
+    var publish_date_text: String
+    var created_at: String
+    var updated_at: String
+}
 
-        static let accountID = "accountID"
-        static let name = "name"
-        static let displayName = "displayName"
-        static let phone = "phone"
-        static let city = "city"
-        static let bio = "bio"
-        static let avatarSymbol = "avatarSymbol"
+private struct FeedPostRow: Codable, Sendable {
+    let id: UUID
+    let user_id: UUID
+    var related_pet_id: UUID?
+    var author_name: String
+    var pet_name: String
+    var topic: String
+    var city: String
+    var content: String
+    var tags: [String]
+    var likes: Int
+    var liked_by_current_user: Bool
+    var created_at_text: String
+    var created_at: String
+    var updated_at: String
+}
 
-        static let petID = "petID"
-        static let species = "species"
-        static let breed = "breed"
-        static let ageText = "ageText"
-        static let interests = "interests"
-        static let lookingFor = "lookingFor"
-        static let accent = "accent"
-        static let ownerName = "ownerName"
-        static let vaccinated = "vaccinated"
+private struct PostCommentRow: Codable, Sendable {
+    let id: UUID
+    let user_id: UUID
+    let post_id: UUID
+    var author_name: String
+    var body: String
+    var created_at_text: String
+    var created_at: String
+    var updated_at: String
+}
 
-        static let memoryID = "memoryID"
-        static let title = "title"
-        static let subtitle = "subtitle"
-        static let dateText = "dateText"
-        static let ornament = "ornament"
-        static let story = "story"
-        static let photoAsset = "photoAsset"
-        static let audioAsset = "audioAsset"
-        static let audioDisplayName = "audioDisplayName"
+private struct ChatThreadRow: Codable, Sendable {
+    let id: UUID
+    let user_id: UUID
+    let related_pet_id: UUID
+    var title: String
+    var subtitle: String
+    var unread_count: Int
+    var accent: String
+    var created_at: String
+    var updated_at: String
+}
 
-        static let videoID = "videoID"
-        static let duration = "duration"
-        static let caption = "caption"
-        static let tags = "tags"
-        static let status = "status"
-        static let selectedAssetCount = "selectedAssetCount"
-        static let publishDateText = "publishDateText"
+private struct ChatMessageRow: Codable, Sendable {
+    let id: UUID
+    let user_id: UUID
+    let thread_id: UUID
+    var text: String
+    var is_from_current_user: Bool
+    var sent_at_text: String
+    var created_at: String
+    var updated_at: String
+}
 
-        static let postID = "postID"
-        static let relatedPetID = "relatedPetID"
-        static let authorName = "authorName"
-        static let petName = "petName"
-        static let topic = "topic"
-        static let content = "content"
-        static let likes = "likes"
-        static let likedByCurrentUser = "likedByCurrentUser"
-        static let createdAtText = "createdAtText"
-
-        static let commentID = "commentID"
-        static let body = "body"
-
-        static let threadID = "threadID"
-        static let unreadCount = "unreadCount"
-
-        static let messageID = "messageID"
-        static let text = "text"
-        static let isFromCurrentUser = "isFromCurrentUser"
-        static let sentAtText = "sentAtText"
-    }
-
-    private enum Limits {
-        static let mutationBatchSize = 200
-    }
-
-    private enum LegacyStorage {
-        static let recordName = "current"
-        static let payloadField = "payload"
-    }
-
-    private let container: CKContainer
-    private let database: CKDatabase
+actor SupabasePetBackend: PetBackend {
+    private let client: SupabaseRESTClient
     private let fallback = InMemoryPetBackend()
 
     private var useFallbackOnly = false
     private var hasLoggedFallback = false
 
-    init(containerIdentifier: String?) {
-        if let containerIdentifier, !containerIdentifier.isEmpty {
-            container = CKContainer(identifier: containerIdentifier)
-        } else {
-            container = CKContainer.default()
-        }
-
-        database = container.privateCloudDatabase
+    fileprivate init(config: SupabaseConfig) {
+        self.client = SupabaseRESTClient(config: config)
     }
 
     func bootstrap() async -> BootstrapPayload {
@@ -724,25 +958,27 @@ actor CloudKitPetBackend: PetBackend {
     func signIn(with draft: SignInDraft) async -> BootstrapPayload {
         await runOrFallback(
             primary: {
-                if let activeUserID = try await loadSessionUserID(),
-                   var activeUser = try await loadUser(userID: activeUserID) {
+                if let activeUserID = loadSessionUserID(),
+                   var row = try await loadUserRow(userID: activeUserID) {
                     if !draft.displayName.isEmpty {
-                        activeUser.displayName = draft.displayName
+                        row.display_name = draft.displayName
                     }
                     if !draft.phone.isEmpty {
-                        activeUser.phone = draft.phone
+                        row.phone = draft.phone
                     }
-                    activeUser.city = draft.city
-                    try await saveUser(activeUser)
+                    row.city = draft.city
+                    row.updated_at = nowString()
+                    try await client.update(row, table: SupabaseTable.userAccounts, filters: [eq("id", activeUserID)])
 
-                    var payload = try await loadBootstrapPayload(for: activeUser)
-                    try await seedDefaultStateIfNeeded(for: activeUser, payload: payload)
-                    payload = try await loadBootstrapPayload(for: activeUser)
-                    try await saveSessionUserID(activeUser.id)
+                    let user = decodeUser(row)
+                    var payload = try await loadBootstrapPayload(for: user)
+                    try await seedDefaultStateIfNeeded(for: user, payload: payload)
+                    payload = try await loadBootstrapPayload(for: user)
+                    saveSessionUserID(user.id)
                     return payload
                 }
 
-                try await saveSessionUserID(nil)
+                saveSessionUserID(nil)
 
                 let user = UserAccount(
                     id: UUID(),
@@ -754,7 +990,7 @@ actor CloudKitPetBackend: PetBackend {
                 )
                 try await saveUser(user)
                 try await seedAllDefaultState(for: user)
-                try await saveSessionUserID(user.id)
+                saveSessionUserID(user.id)
                 return try await loadBootstrapPayload(for: user)
             },
             fallbackAction: {
@@ -766,10 +1002,10 @@ actor CloudKitPetBackend: PetBackend {
     func signOut() async -> BootstrapPayload {
         await runOrFallback(
             primary: {
-                if let activeUserID = try await loadSessionUserID() {
+                if let activeUserID = loadSessionUserID() {
                     try await deleteAllUserRecords(for: activeUserID)
                 }
-                try await saveSessionUserID(nil)
+                saveSessionUserID(nil)
                 return makeSignedOutPayload()
             },
             fallbackAction: {
@@ -781,7 +1017,7 @@ actor CloudKitPetBackend: PetBackend {
     func addPet(_ draft: PetDraft, owner: UserAccount) async -> BootstrapPayload {
         await runOrFallback(
             primary: {
-                guard let userID = try await loadSessionUserID() else {
+                guard let userID = loadSessionUserID() else {
                     return makeSignedOutPayload()
                 }
 
@@ -799,7 +1035,7 @@ actor CloudKitPetBackend: PetBackend {
                     ownerName: owner.displayName,
                     vaccinated: draft.vaccinated
                 )
-                _ = try await database.save(makeOwnedPetRecord(pet, userID: userID, createdAt: Date()))
+                try await client.insert(makeOwnedPetRow(pet, userID: userID, createdAt: Date()), into: SupabaseTable.ownedPets)
                 return try await loadBootstrapPayload()
             },
             fallbackAction: {
@@ -811,23 +1047,52 @@ actor CloudKitPetBackend: PetBackend {
     func addMemory(_ draft: MemoryDraft) async -> BootstrapPayload {
         await runOrFallback(
             primary: {
-                guard let userID = try await loadSessionUserID() else {
+                guard let userID = loadSessionUserID() else {
                     return makeSignedOutPayload()
                 }
 
                 let memory = HolidayMemory(
-                    id: UUID(),
+                    id: draft.id,
                     title: draft.title,
                     subtitle: draft.subtitle,
                     dateText: draft.dateText,
                     ornament: draft.ornament,
                     accent: draft.accent,
                     story: draft.story,
+                    mediaKind: draft.mediaKind,
+                    mediaAssetPath: draft.mediaAssetPath ?? draft.photoAssetPath,
+                    mediaDisplayName: draft.mediaDisplayName,
+                    notes: [],
                     photoAssetPath: draft.photoAssetPath,
                     audioAssetPath: draft.audioAssetPath,
                     audioDisplayName: draft.audioDisplayName
                 )
-                _ = try await database.save(makeMemoryRecord(memory, userID: userID, createdAt: Date()))
+
+                let photoStoragePath = try await uploadMemoryAsset(
+                    relativePath: draft.photoAssetPath,
+                    userID: userID,
+                    memoryID: memory.id,
+                    fileStem: "photo",
+                    fallbackExtension: "jpg"
+                )
+                let audioStoragePath = try await uploadMemoryAsset(
+                    relativePath: draft.audioAssetPath,
+                    userID: userID,
+                    memoryID: memory.id,
+                    fileStem: "audio",
+                    fallbackExtension: "m4a"
+                )
+
+                try await client.insert(
+                    makeMemoryRow(
+                        memory,
+                        userID: userID,
+                        createdAt: Date(),
+                        photoStoragePath: photoStoragePath,
+                        audioStoragePath: audioStoragePath
+                    ),
+                    into: SupabaseTable.holidayMemories
+                )
                 return try await loadBootstrapPayload()
             },
             fallbackAction: {
@@ -839,7 +1104,7 @@ actor CloudKitPetBackend: PetBackend {
     func createVideo(_ draft: VideoDraft, selectedAssetCount: Int) async -> BootstrapPayload {
         await runOrFallback(
             primary: {
-                guard let userID = try await loadSessionUserID() else {
+                guard let userID = loadSessionUserID() else {
                     return makeSignedOutPayload()
                 }
 
@@ -854,7 +1119,7 @@ actor CloudKitPetBackend: PetBackend {
                     accent: draft.accent,
                     publishDateText: selectedAssetCount == 0 ? "草稿" : "刚刚"
                 )
-                _ = try await database.save(makeVideoRecord(video, userID: userID, createdAt: Date()))
+                try await client.insert(makeVideoRow(video, userID: userID, createdAt: Date()), into: SupabaseTable.uploadVideos)
                 return try await loadBootstrapPayload()
             },
             fallbackAction: {
@@ -866,16 +1131,14 @@ actor CloudKitPetBackend: PetBackend {
     func createPost(_ draft: PostDraft, user: UserAccount, petName: String) async -> BootstrapPayload {
         await runOrFallback(
             primary: {
-                guard try await loadSessionUserID() != nil else {
+                guard let userID = loadSessionUserID() else {
                     return makeSignedOutPayload()
                 }
 
                 let payload = try await loadBootstrapPayload()
-                guard let currentUser = payload.currentUser else { return payload }
-
                 let relatedPetID = payload.ownedPets.first(where: { $0.name == petName })?.id
                 let post = FeedPost(
-                    id: UUID(),
+                    id: draft.id,
                     relatedPetID: relatedPetID,
                     authorName: user.displayName,
                     petName: petName,
@@ -888,7 +1151,7 @@ actor CloudKitPetBackend: PetBackend {
                     likedByCurrentUser: false,
                     createdAtText: "刚刚"
                 )
-                _ = try await database.save(makeFeedPostRecord(post, userID: currentUser.id, createdAt: Date()))
+                try await client.insert(makeFeedPostRow(post, userID: userID, createdAt: Date()), into: SupabaseTable.feedPosts)
                 return try await loadBootstrapPayload()
             },
             fallbackAction: {
@@ -900,25 +1163,18 @@ actor CloudKitPetBackend: PetBackend {
     func toggleLike(postID: UUID) async -> BootstrapPayload {
         await runOrFallback(
             primary: {
-                guard let userID = try await loadSessionUserID() else {
+                guard let userID = loadSessionUserID() else {
                     return makeSignedOutPayload()
                 }
 
-                let postRecordID = recordID(prefix: Prefix.feedPost, uuid: postID)
-                guard let postRecord = try await fetchRecordIfExists(postRecordID) else {
+                guard var row = try await loadPostRow(postID: postID, userID: userID) else {
                     return try await loadBootstrapPayload()
                 }
 
-                guard belongsToUser(postRecord, userID: userID) else {
-                    return try await loadBootstrapPayload()
-                }
-
-                let wasLiked = boolValue(postRecord[Field.likedByCurrentUser])
-                let previousLikes = intValue(postRecord[Field.likes])
-                postRecord[Field.likedByCurrentUser] = NSNumber(value: !wasLiked)
-                postRecord[Field.likes] = NSNumber(value: max(0, previousLikes + (wasLiked ? -1 : 1)))
-                postRecord[Field.updatedAt] = Date() as NSDate
-                _ = try await database.save(postRecord)
+                row.liked_by_current_user.toggle()
+                row.likes = max(0, row.likes + (row.liked_by_current_user ? 1 : -1))
+                row.updated_at = nowString()
+                try await client.update(row, table: SupabaseTable.feedPosts, filters: [eq("id", postID), eq("user_id", userID)])
                 return try await loadBootstrapPayload()
             },
             fallbackAction: {
@@ -930,16 +1186,11 @@ actor CloudKitPetBackend: PetBackend {
     func addComment(postID: UUID, text: String, userName: String) async -> BootstrapPayload {
         await runOrFallback(
             primary: {
-                guard let userID = try await loadSessionUserID() else {
+                guard let userID = loadSessionUserID() else {
                     return makeSignedOutPayload()
                 }
 
-                let postRecordID = recordID(prefix: Prefix.feedPost, uuid: postID)
-                guard let postRecord = try await fetchRecordIfExists(postRecordID) else {
-                    return try await loadBootstrapPayload()
-                }
-
-                guard belongsToUser(postRecord, userID: userID) else {
+                guard try await loadPostRow(postID: postID, userID: userID) != nil else {
                     return try await loadBootstrapPayload()
                 }
 
@@ -949,8 +1200,9 @@ actor CloudKitPetBackend: PetBackend {
                     body: text,
                     createdAtText: "刚刚"
                 )
-                _ = try await database.save(
-                    makePostCommentRecord(comment, postID: postID, userID: userID, createdAt: Date())
+                try await client.insert(
+                    makePostCommentRow(comment, postID: postID, userID: userID, createdAt: Date()),
+                    into: SupabaseTable.postComments
                 )
                 return try await loadBootstrapPayload()
             },
@@ -963,17 +1215,17 @@ actor CloudKitPetBackend: PetBackend {
     func openChat(for pet: PetProfile) async -> (BootstrapPayload, UUID) {
         await runOrFallback(
             primary: {
-                guard let userID = try await loadSessionUserID() else {
+                guard let userID = loadSessionUserID() else {
                     return (makeSignedOutPayload(), UUID())
                 }
 
-                let threadRecords = try await queryAllRecords(in: database, recordType: RecordType.chatThread)
-                let existingThread = records(for: userID, in: threadRecords)
-                    .compactMap(decodeChatThreadEntry)
-                    .first(where: { $0.thread.relatedPetID == pet.id })?.thread
-
-                if let existingThread {
-                    return (try await loadBootstrapPayload(), existingThread.id)
+                let existingRows = try await client.select(
+                    ChatThreadRow.self,
+                    from: SupabaseTable.chatThreads,
+                    filters: [eq("user_id", userID), eq("related_pet_id", pet.id)]
+                )
+                if let existingThreadID = existingRows.first?.id {
+                    return (try await loadBootstrapPayload(), existingThreadID)
                 }
 
                 let thread = ChatThread(
@@ -993,15 +1245,16 @@ actor CloudKitPetBackend: PetBackend {
                     ]
                 )
 
-                let now = Date()
-                let threadRecord = makeChatThreadRecord(thread, userID: userID, createdAt: now)
-                let messageRecord = makeChatMessageRecord(
-                    thread.messages[0],
-                    threadID: thread.id,
-                    userID: userID,
-                    createdAt: now
+                let createdAt = Date()
+                try await client.insert(
+                    makeChatThreadRow(thread, userID: userID, createdAt: createdAt),
+                    into: SupabaseTable.chatThreads
                 )
-                try await applyRecordChanges(in: database, saving: [threadRecord, messageRecord], deleting: [])
+                try await client.insert(
+                    makeChatMessageRow(thread.messages[0], threadID: thread.id, userID: userID, createdAt: createdAt),
+                    into: SupabaseTable.chatMessages
+                )
+
                 return (try await loadBootstrapPayload(), thread.id)
             },
             fallbackAction: {
@@ -1013,22 +1266,22 @@ actor CloudKitPetBackend: PetBackend {
     func sendMessage(threadID: UUID, text: String) async -> BootstrapPayload {
         await runOrFallback(
             primary: {
-                guard let userID = try await loadSessionUserID() else {
+                guard let userID = loadSessionUserID() else {
                     return makeSignedOutPayload()
                 }
 
-                let threadRecordID = recordID(prefix: Prefix.chatThread, uuid: threadID)
-                guard let threadRecord = try await fetchRecordIfExists(threadRecordID) else {
+                guard var threadRow = try await loadThreadRow(threadID: threadID, userID: userID) else {
                     return try await loadBootstrapPayload()
                 }
 
-                guard belongsToUser(threadRecord, userID: userID) else {
-                    return try await loadBootstrapPayload()
-                }
-
-                threadRecord[Field.subtitle] = text as NSString
-                threadRecord[Field.unreadCount] = NSNumber(value: 0)
-                threadRecord[Field.updatedAt] = Date() as NSDate
+                threadRow.subtitle = text
+                threadRow.unread_count = 0
+                threadRow.updated_at = nowString()
+                try await client.update(
+                    threadRow,
+                    table: SupabaseTable.chatThreads,
+                    filters: [eq("id", threadID), eq("user_id", userID)]
+                )
 
                 let message = ChatMessage(
                     id: UUID(),
@@ -1036,13 +1289,10 @@ actor CloudKitPetBackend: PetBackend {
                     isFromCurrentUser: true,
                     sentAtText: "刚刚"
                 )
-                let messageRecord = makeChatMessageRecord(
-                    message,
-                    threadID: threadID,
-                    userID: userID,
-                    createdAt: Date()
+                try await client.insert(
+                    makeChatMessageRow(message, threadID: threadID, userID: userID, createdAt: Date()),
+                    into: SupabaseTable.chatMessages
                 )
-                try await applyRecordChanges(in: database, saving: [threadRecord, messageRecord], deleting: [])
                 return try await loadBootstrapPayload()
             },
             fallbackAction: {
@@ -1066,7 +1316,7 @@ actor CloudKitPetBackend: PetBackend {
 
             if !hasLoggedFallback {
                 hasLoggedFallback = true
-                print("[PetLife] CloudKit backend failed, switched to InMemory fallback: \(error)")
+                print("[PetLife] Supabase backend failed, switched to InMemory fallback: \(error)")
             }
 
             return await fallbackAction()
@@ -1074,120 +1324,65 @@ actor CloudKitPetBackend: PetBackend {
     }
 
     private func loadBootstrapPayload() async throws -> BootstrapPayload {
-        var activeUserID = try await loadSessionUserID()
-        if activeUserID == nil {
-            try await migrateLegacyPayloadIfNeeded()
-            activeUserID = try await loadSessionUserID()
-        }
-
-        guard let activeUserID else {
+        guard let activeUserID = loadSessionUserID() else {
             return makeSignedOutPayload()
         }
 
         guard let user = try await loadUser(userID: activeUserID) else {
-            try await saveSessionUserID(nil)
+            saveSessionUserID(nil)
             return makeSignedOutPayload()
         }
 
         return try await loadBootstrapPayload(for: user)
     }
 
-    private func migrateLegacyPayloadIfNeeded() async throws {
-        let legacyRecordID = CKRecord.ID(recordName: LegacyStorage.recordName)
-        guard let legacyRecord = try await fetchRecordIfExists(legacyRecordID) else {
-            return
-        }
-
-        guard let rawPayload = legacyRecord[LegacyStorage.payloadField] as? NSData else {
-            try await applyRecordChanges(in: database, saving: [], deleting: [legacyRecordID])
-            return
-        }
-
-        let decoder = JSONDecoder()
-        let payload = try decoder.decode(BootstrapPayload.self, from: rawPayload as Data)
-
-        guard let user = payload.currentUser else {
-            try await saveSessionUserID(nil)
-            try await applyRecordChanges(in: database, saving: [], deleting: [legacyRecordID])
-            return
-        }
-
-        try await deleteAllUserRecords(for: user.id)
-        try await saveUser(user)
-        try await persistOwnedPets(payload.ownedPets, userID: user.id)
-        try await persistMemories(payload.memories, userID: user.id)
-        try await persistVideos(payload.uploadVideos, userID: user.id)
-        try await persistPosts(payload.feedPosts, userID: user.id)
-        try await persistThreads(payload.chatThreads, userID: user.id)
-        try await saveSessionUserID(user.id)
-        try await applyRecordChanges(in: database, saving: [], deleting: [legacyRecordID])
-    }
-
     private func loadBootstrapPayload(for user: UserAccount) async throws -> BootstrapPayload {
-        async let ownedPetRecords = queryAllRecords(in: database, recordType: RecordType.ownedPet)
-        async let memoryRecords = queryAllRecords(in: database, recordType: RecordType.holidayMemory)
-        async let videoRecords = queryAllRecords(in: database, recordType: RecordType.uploadVideo)
-        async let postRecords = queryAllRecords(in: database, recordType: RecordType.feedPost)
-        async let commentRecords = queryAllRecords(in: database, recordType: RecordType.postComment)
-        async let threadRecords = queryAllRecords(in: database, recordType: RecordType.chatThread)
-        async let messageRecords = queryAllRecords(in: database, recordType: RecordType.chatMessage)
-
         let userID = user.id
 
-        let ownedPetRecordsValue = try await ownedPetRecords
-        let memoryRecordsValue = try await memoryRecords
-        let videoRecordsValue = try await videoRecords
-        let postRecordsValue = try await postRecords
-        let commentRecordsValue = try await commentRecords
-        let threadRecordsValue = try await threadRecords
-        let messageRecordsValue = try await messageRecords
+        async let petRows = client.select(OwnedPetRow.self, from: SupabaseTable.ownedPets, filters: [eq("user_id", userID)])
+        async let memoryRows = client.select(HolidayMemoryRow.self, from: SupabaseTable.holidayMemories, filters: [eq("user_id", userID)])
+        async let videoRows = client.select(UploadVideoRow.self, from: SupabaseTable.uploadVideos, filters: [eq("user_id", userID)])
+        async let postRows = client.select(FeedPostRow.self, from: SupabaseTable.feedPosts, filters: [eq("user_id", userID)])
+        async let commentRows = client.select(PostCommentRow.self, from: SupabaseTable.postComments, filters: [eq("user_id", userID)])
+        async let threadRows = client.select(ChatThreadRow.self, from: SupabaseTable.chatThreads, filters: [eq("user_id", userID)])
+        async let messageRows = client.select(ChatMessageRow.self, from: SupabaseTable.chatMessages, filters: [eq("user_id", userID)])
 
-        let pets = records(for: userID, in: ownedPetRecordsValue)
-            .compactMap(decodeOwnedPetEntry)
-            .sorted(by: { $0.createdAt > $1.createdAt })
-            .map(\.pet)
+        let pets = try await petRows
+            .sorted { createdAt(from: $0.created_at) > createdAt(from: $1.created_at) }
+            .map(decodeOwnedPet)
 
-        let memories = records(for: userID, in: memoryRecordsValue)
-            .compactMap(decodeMemoryEntry)
-            .sorted(by: { $0.createdAt > $1.createdAt })
-            .map(\.memory)
+        let memories = try await buildMemories(from: memoryRows)
+        let videos = try await videoRows
+            .sorted { createdAt(from: $0.created_at) > createdAt(from: $1.created_at) }
+            .map(decodeVideo)
 
-        let videos = records(for: userID, in: videoRecordsValue)
-            .compactMap(decodeVideoEntry)
-            .sorted(by: { $0.createdAt > $1.createdAt })
-            .map(\.video)
-
-        let commentEntries = records(for: userID, in: commentRecordsValue)
-            .compactMap(decodePostCommentEntry)
-            .sorted(by: { $0.createdAt < $1.createdAt })
+        let sortedComments = try await commentRows
+            .sorted { createdAt(from: $0.created_at) < createdAt(from: $1.created_at) }
         var commentsByPost: [UUID: [PostComment]] = [:]
-        for entry in commentEntries {
-            commentsByPost[entry.postID, default: []].append(entry.comment)
+        for row in sortedComments {
+            commentsByPost[row.post_id, default: []].append(decodeComment(row))
         }
 
-        let posts = records(for: userID, in: postRecordsValue)
-            .compactMap(decodeFeedPostEntry)
-            .sorted(by: { $0.createdAt > $1.createdAt })
-            .map { entry in
-                var post = entry.post
-                post.comments = commentsByPost[post.id] ?? []
+        let posts = try await postRows
+            .sorted { createdAt(from: $0.created_at) > createdAt(from: $1.created_at) }
+            .map { row in
+                var post = decodeFeedPost(row)
+                post.comments = commentsByPost[row.id] ?? []
                 return post
             }
 
-        let messageEntries = records(for: userID, in: messageRecordsValue)
-            .compactMap(decodeChatMessageEntry)
-            .sorted(by: { $0.createdAt < $1.createdAt })
+        let sortedMessages = try await messageRows
+            .sorted { createdAt(from: $0.created_at) < createdAt(from: $1.created_at) }
         var messagesByThread: [UUID: [ChatMessage]] = [:]
-        for entry in messageEntries {
-            messagesByThread[entry.threadID, default: []].append(entry.message)
+        for row in sortedMessages {
+            messagesByThread[row.thread_id, default: []].append(decodeMessage(row))
         }
 
-        let threads = records(for: userID, in: threadRecordsValue)
-            .compactMap(decodeChatThreadEntry)
-            .sorted(by: { $0.createdAt > $1.createdAt })
-            .map { entry in
-                var thread = entry.thread
-                thread.messages = messagesByThread[thread.id] ?? []
+        let threads = try await threadRows
+            .sorted { createdAt(from: $0.created_at) > createdAt(from: $1.created_at) }
+            .map { row in
+                var thread = decodeThread(row)
+                thread.messages = messagesByThread[row.id] ?? []
                 return thread
             }
 
@@ -1200,6 +1395,14 @@ actor CloudKitPetBackend: PetBackend {
             feedPosts: posts,
             chatThreads: threads
         )
+    }
+
+    private func buildMemories(from rows: [HolidayMemoryRow]) async throws -> [HolidayMemory] {
+        var memories: [HolidayMemory] = []
+        for row in rows.sorted(by: { createdAt(from: $0.created_at) > createdAt(from: $1.created_at) }) {
+            memories.append(try await decodeMemory(row))
+        }
+        return memories
     }
 
     private func seedAllDefaultState(for user: UserAccount) async throws {
@@ -1233,543 +1436,385 @@ actor CloudKitPetBackend: PetBackend {
 
     private func persistOwnedPets(_ pets: [PetProfile], userID: UUID) async throws {
         let baseDate = Date()
-        let records = pets.enumerated().map { index, pet in
-            makeOwnedPetRecord(
-                pet,
-                userID: userID,
-                createdAt: baseDate.addingTimeInterval(-Double(index))
-            )
+        let rows = pets.enumerated().map { index, pet in
+            makeOwnedPetRow(pet, userID: userID, createdAt: baseDate.addingTimeInterval(-Double(index)))
         }
-        try await saveRecordsInBatches(records)
+        try await client.insertMany(rows, into: SupabaseTable.ownedPets)
     }
 
     private func persistMemories(_ memories: [HolidayMemory], userID: UUID) async throws {
         let baseDate = Date()
-        let records = memories.enumerated().map { index, memory in
-            makeMemoryRecord(
+        let rows = memories.enumerated().map { index, memory in
+            makeMemoryRow(
                 memory,
                 userID: userID,
-                createdAt: baseDate.addingTimeInterval(-Double(index))
+                createdAt: baseDate.addingTimeInterval(-Double(index)),
+                photoStoragePath: nil,
+                audioStoragePath: nil
             )
         }
-        try await saveRecordsInBatches(records)
+        try await client.insertMany(rows, into: SupabaseTable.holidayMemories)
     }
 
     private func persistVideos(_ videos: [UploadVideo], userID: UUID) async throws {
         let baseDate = Date()
-        let records = videos.enumerated().map { index, video in
-            makeVideoRecord(
-                video,
-                userID: userID,
-                createdAt: baseDate.addingTimeInterval(-Double(index))
-            )
+        let rows = videos.enumerated().map { index, video in
+            makeVideoRow(video, userID: userID, createdAt: baseDate.addingTimeInterval(-Double(index)))
         }
-        try await saveRecordsInBatches(records)
+        try await client.insertMany(rows, into: SupabaseTable.uploadVideos)
     }
 
     private func persistPosts(_ posts: [FeedPost], userID: UUID) async throws {
         let baseDate = Date()
-        var records: [CKRecord] = []
+        var postRows: [FeedPostRow] = []
+        var commentRows: [PostCommentRow] = []
 
         for (postIndex, post) in posts.enumerated() {
             let postDate = baseDate.addingTimeInterval(-Double(postIndex))
-            records.append(makeFeedPostRecord(post, userID: userID, createdAt: postDate))
+            postRows.append(makeFeedPostRow(post, userID: userID, createdAt: postDate))
 
             for (commentIndex, comment) in post.comments.enumerated() {
                 let commentDate = postDate.addingTimeInterval(Double(commentIndex) * 0.001)
-                records.append(
-                    makePostCommentRecord(comment, postID: post.id, userID: userID, createdAt: commentDate)
-                )
+                commentRows.append(makePostCommentRow(comment, postID: post.id, userID: userID, createdAt: commentDate))
             }
         }
 
-        try await saveRecordsInBatches(records)
+        try await client.insertMany(postRows, into: SupabaseTable.feedPosts)
+        try await client.insertMany(commentRows, into: SupabaseTable.postComments)
     }
 
     private func persistThreads(_ threads: [ChatThread], userID: UUID) async throws {
         let baseDate = Date()
-        var records: [CKRecord] = []
+        var threadRows: [ChatThreadRow] = []
+        var messageRows: [ChatMessageRow] = []
 
         for (threadIndex, thread) in threads.enumerated() {
             let threadDate = baseDate.addingTimeInterval(-Double(threadIndex))
-            records.append(makeChatThreadRecord(thread, userID: userID, createdAt: threadDate))
+            threadRows.append(makeChatThreadRow(thread, userID: userID, createdAt: threadDate))
 
             for (messageIndex, message) in thread.messages.enumerated() {
                 let messageDate = threadDate.addingTimeInterval(Double(messageIndex) * 0.001)
-                records.append(
-                    makeChatMessageRecord(message, threadID: thread.id, userID: userID, createdAt: messageDate)
+                messageRows.append(
+                    makeChatMessageRow(message, threadID: thread.id, userID: userID, createdAt: messageDate)
                 )
             }
         }
 
-        try await saveRecordsInBatches(records)
-    }
-
-    private func saveRecordsInBatches(_ records: [CKRecord]) async throws {
-        for batch in chunked(records, size: Limits.mutationBatchSize) {
-            try await applyRecordChanges(in: database, saving: batch, deleting: [])
-        }
+        try await client.insertMany(threadRows, into: SupabaseTable.chatThreads)
+        try await client.insertMany(messageRows, into: SupabaseTable.chatMessages)
     }
 
     private func deleteAllUserRecords(for userID: UUID) async throws {
-        let recordTypes = [
-            RecordType.ownedPet,
-            RecordType.holidayMemory,
-            RecordType.uploadVideo,
-            RecordType.feedPost,
-            RecordType.postComment,
-            RecordType.chatThread,
-            RecordType.chatMessage
-        ]
-
-        var recordIDs: [CKRecord.ID] = []
-        for recordType in recordTypes {
-            let allRecords = try await queryAllRecords(in: database, recordType: recordType)
-            recordIDs.append(contentsOf: records(for: userID, in: allRecords).map(\.recordID))
-        }
-
-        recordIDs.append(recordID(prefix: Prefix.userAccount, uuid: userID))
-        for batch in chunked(recordIDs, size: Limits.mutationBatchSize) {
-            try await applyRecordChanges(in: database, saving: [], deleting: batch)
-        }
+        try await client.delete(from: SupabaseTable.postComments, filters: [eq("user_id", userID)])
+        try await client.delete(from: SupabaseTable.chatMessages, filters: [eq("user_id", userID)])
+        try await client.delete(from: SupabaseTable.feedPosts, filters: [eq("user_id", userID)])
+        try await client.delete(from: SupabaseTable.chatThreads, filters: [eq("user_id", userID)])
+        try await client.delete(from: SupabaseTable.uploadVideos, filters: [eq("user_id", userID)])
+        try await client.delete(from: SupabaseTable.holidayMemories, filters: [eq("user_id", userID)])
+        try await client.delete(from: SupabaseTable.ownedPets, filters: [eq("user_id", userID)])
+        try await client.delete(from: SupabaseTable.userAccounts, filters: [eq("id", userID)])
     }
 
     private func loadUser(userID: UUID) async throws -> UserAccount? {
-        guard let record = try await fetchRecordIfExists(recordID(prefix: Prefix.userAccount, uuid: userID)) else {
+        guard let row = try await loadUserRow(userID: userID) else {
             return nil
         }
-        return decodeUser(record)
+        return decodeUser(row)
+    }
+
+    private func loadUserRow(userID: UUID) async throws -> UserRow? {
+        try await client.select(
+            UserRow.self,
+            from: SupabaseTable.userAccounts,
+            filters: [eq("id", userID)],
+            limit: 1
+        ).first
+    }
+
+    private func loadPostRow(postID: UUID, userID: UUID) async throws -> FeedPostRow? {
+        try await client.select(
+            FeedPostRow.self,
+            from: SupabaseTable.feedPosts,
+            filters: [eq("id", postID), eq("user_id", userID)],
+            limit: 1
+        ).first
+    }
+
+    private func loadThreadRow(threadID: UUID, userID: UUID) async throws -> ChatThreadRow? {
+        try await client.select(
+            ChatThreadRow.self,
+            from: SupabaseTable.chatThreads,
+            filters: [eq("id", threadID), eq("user_id", userID)],
+            limit: 1
+        ).first
     }
 
     private func saveUser(_ user: UserAccount) async throws {
-        _ = try await database.save(makeUserRecord(user))
+        let timestamp = nowString()
+        let row = UserRow(
+            id: user.id,
+            display_name: user.displayName,
+            phone: user.phone,
+            city: user.city,
+            bio: user.bio,
+            avatar_symbol: user.avatarSymbol,
+            created_at: timestamp,
+            updated_at: timestamp
+        )
+        try await client.insert(row, into: SupabaseTable.userAccounts)
     }
 
-    private func loadSessionUserID() async throws -> UUID? {
-        do {
-            let record = try await database.record(for: sessionRecordID)
-            guard let rawUserID = record[Field.activeUserID] as? String else {
-                return nil
-            }
-            return UUID(uuidString: rawUserID)
-        } catch {
-            if isUnknownItem(error) {
-                return nil
-            }
-            throw error
-        }
+    private func loadSessionUserID() -> UUID? {
+        LocalSessionStore.loadActiveUserID()
     }
 
-    private func saveSessionUserID(_ userID: UUID?) async throws {
-        let record = try await loadOrCreateSessionRecord()
-        record[Field.activeUserID] = userID?.uuidString as NSString?
-        record[Field.updatedAt] = Date() as NSDate
-        _ = try await database.save(record)
+    private func saveSessionUserID(_ userID: UUID?) {
+        LocalSessionStore.saveActiveUserID(userID)
     }
 
-    private func loadOrCreateSessionRecord() async throws -> CKRecord {
-        do {
-            return try await database.record(for: sessionRecordID)
-        } catch {
-            if isUnknownItem(error) {
-                return CKRecord(recordType: RecordType.session, recordID: sessionRecordID)
-            }
-            throw error
-        }
-    }
-
-    private func fetchRecordIfExists(_ recordID: CKRecord.ID) async throws -> CKRecord? {
-        do {
-            return try await database.record(for: recordID)
-        } catch {
-            if isUnknownItem(error) {
-                return nil
-            }
-            throw error
-        }
-    }
-
-    private var sessionRecordID: CKRecord.ID {
-        CKRecord.ID(recordName: "session_current")
-    }
-
-    private func recordID(prefix: String, uuid: UUID) -> CKRecord.ID {
-        CKRecord.ID(recordName: "\(prefix)_\(uuid.uuidString.lowercased())")
-    }
-
-    private func records(for userID: UUID, in records: [CKRecord]) -> [CKRecord] {
-        let userIDString = userID.uuidString
-        return records.filter { ($0[Field.userID] as? String) == userIDString }
-    }
-
-    private func belongsToUser(_ record: CKRecord, userID: UUID) -> Bool {
-        (record[Field.userID] as? String) == userID.uuidString
-    }
-
-    private func decodeUser(_ record: CKRecord) -> UserAccount? {
-        guard
-            let idString = record[Field.accountID] as? String,
-            let id = UUID(uuidString: idString),
-            let displayName = record[Field.displayName] as? String,
-            let phone = record[Field.phone] as? String,
-            let city = record[Field.city] as? String,
-            let bio = record[Field.bio] as? String,
-            let avatarSymbol = record[Field.avatarSymbol] as? String
-        else {
-            return nil
-        }
-
-        return UserAccount(
-            id: id,
-            displayName: displayName,
-            phone: phone,
-            city: city,
-            bio: bio,
-            avatarSymbol: avatarSymbol
+    private func decodeUser(_ row: UserRow) -> UserAccount {
+        UserAccount(
+            id: row.id,
+            displayName: row.display_name,
+            phone: row.phone,
+            city: row.city,
+            bio: row.bio,
+            avatarSymbol: row.avatar_symbol
         )
     }
 
-    private func decodeOwnedPetEntry(_ record: CKRecord) -> (pet: PetProfile, createdAt: Date)? {
-        guard
-            let id = uuid(from: record[Field.petID]),
-            let name = record[Field.name] as? String,
-            let species = record[Field.species] as? String,
-            let breed = record[Field.breed] as? String,
-            let ageText = record[Field.ageText] as? String,
-            let city = record[Field.city] as? String,
-            let bio = record[Field.bio] as? String,
-            let interests = record[Field.interests] as? [String],
-            let lookingFor = record[Field.lookingFor] as? String,
-            let accentRaw = record[Field.accent] as? String,
-            let ownerName = record[Field.ownerName] as? String
-        else {
-            return nil
-        }
-
-        let pet = PetProfile(
-            id: id,
-            name: name,
-            species: species,
-            breed: breed,
-            ageText: ageText,
-            city: city,
-            bio: bio,
-            interests: interests,
-            lookingFor: lookingFor,
-            accent: AccentToken(rawValue: accentRaw) ?? .ember,
-            ownerName: ownerName,
-            vaccinated: boolValue(record[Field.vaccinated])
+    private func decodeOwnedPet(_ row: OwnedPetRow) -> PetProfile {
+        PetProfile(
+            id: row.id,
+            name: row.name,
+            species: row.species,
+            breed: row.breed,
+            ageText: row.age_text,
+            city: row.city,
+            bio: row.bio,
+            interests: row.interests,
+            lookingFor: row.looking_for,
+            accent: AccentToken(rawValue: row.accent) ?? .ember,
+            ownerName: row.owner_name,
+            vaccinated: row.vaccinated
         )
-        return (pet, createdAt(for: record))
     }
 
-    private func decodeMemoryEntry(_ record: CKRecord) -> (memory: HolidayMemory, createdAt: Date)? {
-        guard
-            let id = uuid(from: record[Field.memoryID]),
-            let title = record[Field.title] as? String,
-            let subtitle = record[Field.subtitle] as? String,
-            let dateText = record[Field.dateText] as? String,
-            let ornament = record[Field.ornament] as? String,
-            let accentRaw = record[Field.accent] as? String,
-            let story = record[Field.story] as? String
-        else {
-            return nil
-        }
-
-        let memory = HolidayMemory(
-            id: id,
-            title: title,
-            subtitle: subtitle,
-            dateText: dateText,
-            ornament: ornament,
-            accent: AccentToken(rawValue: accentRaw) ?? .pine,
-            story: story,
-            photoAssetPath: MemoryAssetStore.importCloudAsset(record[Field.photoAsset] as? CKAsset, fallbackExtension: "jpg"),
-            audioAssetPath: MemoryAssetStore.importCloudAsset(record[Field.audioAsset] as? CKAsset, fallbackExtension: "m4a"),
-            audioDisplayName: record[Field.audioDisplayName] as? String
+    private func decodeMemory(_ row: HolidayMemoryRow) async throws -> HolidayMemory {
+        HolidayMemory(
+            id: row.id,
+            title: row.title,
+            subtitle: row.subtitle,
+            dateText: row.date_text,
+            ornament: row.ornament,
+            accent: AccentToken(rawValue: row.accent) ?? .pine,
+            story: row.story,
+            mediaKind: .image,
+            mediaAssetPath: await cacheAssetIfNeeded(storagePath: row.photo_storage_path, fallbackExtension: "jpg"),
+            mediaDisplayName: nil,
+            notes: [],
+            photoAssetPath: await cacheAssetIfNeeded(storagePath: row.photo_storage_path, fallbackExtension: "jpg"),
+            audioAssetPath: await cacheAssetIfNeeded(storagePath: row.audio_storage_path, fallbackExtension: "m4a"),
+            audioDisplayName: row.audio_display_name
         )
-        return (memory, createdAt(for: record))
     }
 
-    private func decodeVideoEntry(_ record: CKRecord) -> (video: UploadVideo, createdAt: Date)? {
-        guard
-            let id = uuid(from: record[Field.videoID]),
-            let title = record[Field.title] as? String,
-            let duration = record[Field.duration] as? String,
-            let caption = record[Field.caption] as? String,
-            let tags = record[Field.tags] as? [String],
-            let statusRaw = record[Field.status] as? String,
-            let accentRaw = record[Field.accent] as? String,
-            let publishDateText = record[Field.publishDateText] as? String
-        else {
-            return nil
-        }
-
-        let video = UploadVideo(
-            id: id,
-            title: title,
-            duration: duration,
-            caption: caption,
-            tags: tags,
-            status: UploadStatus(rawValue: statusRaw) ?? .draft,
-            selectedAssetCount: intValue(record[Field.selectedAssetCount]),
-            accent: AccentToken(rawValue: accentRaw) ?? .peach,
-            publishDateText: publishDateText
+    private func decodeVideo(_ row: UploadVideoRow) -> UploadVideo {
+        UploadVideo(
+            id: row.id,
+            title: row.title,
+            duration: row.duration,
+            caption: row.caption,
+            tags: row.tags,
+            status: UploadStatus(rawValue: row.status) ?? .draft,
+            selectedAssetCount: row.selected_asset_count,
+            accent: AccentToken(rawValue: row.accent) ?? .peach,
+            publishDateText: row.publish_date_text
         )
-        return (video, createdAt(for: record))
     }
 
-    private func decodeFeedPostEntry(_ record: CKRecord) -> (post: FeedPost, createdAt: Date)? {
-        guard
-            let id = uuid(from: record[Field.postID]),
-            let authorName = record[Field.authorName] as? String,
-            let petName = record[Field.petName] as? String,
-            let topic = record[Field.topic] as? String,
-            let city = record[Field.city] as? String,
-            let content = record[Field.content] as? String,
-            let tags = record[Field.tags] as? [String],
-            let createdAtText = record[Field.createdAtText] as? String
-        else {
-            return nil
-        }
-
-        let post = FeedPost(
-            id: id,
-            relatedPetID: uuid(from: record[Field.relatedPetID]),
-            authorName: authorName,
-            petName: petName,
-            topic: topic,
-            city: city,
-            content: content,
-            tags: tags,
-            likes: intValue(record[Field.likes]),
+    private func decodeFeedPost(_ row: FeedPostRow) -> FeedPost {
+        FeedPost(
+            id: row.id,
+            relatedPetID: row.related_pet_id,
+            authorName: row.author_name,
+            petName: row.pet_name,
+            topic: row.topic,
+            city: row.city,
+            content: row.content,
+            tags: row.tags,
+            likes: row.likes,
             comments: [],
-            likedByCurrentUser: boolValue(record[Field.likedByCurrentUser]),
-            createdAtText: createdAtText
+            likedByCurrentUser: row.liked_by_current_user,
+            createdAtText: row.created_at_text
         )
-        return (post, createdAt(for: record))
     }
 
-    private func decodePostCommentEntry(_ record: CKRecord) -> (postID: UUID, comment: PostComment, createdAt: Date)? {
-        guard
-            let postID = uuid(from: record[Field.postID]),
-            let id = uuid(from: record[Field.commentID]),
-            let authorName = record[Field.authorName] as? String,
-            let body = record[Field.body] as? String,
-            let createdAtText = record[Field.createdAtText] as? String
-        else {
-            return nil
-        }
-
-        let comment = PostComment(
-            id: id,
-            authorName: authorName,
-            body: body,
-            createdAtText: createdAtText
+    private func decodeComment(_ row: PostCommentRow) -> PostComment {
+        PostComment(
+            id: row.id,
+            authorName: row.author_name,
+            body: row.body,
+            createdAtText: row.created_at_text
         )
-        return (postID, comment, createdAt(for: record))
     }
 
-    private func decodeChatThreadEntry(_ record: CKRecord) -> (thread: ChatThread, createdAt: Date)? {
-        guard
-            let id = uuid(from: record[Field.threadID]),
-            let relatedPetID = uuid(from: record[Field.relatedPetID]),
-            let title = record[Field.title] as? String,
-            let subtitle = record[Field.subtitle] as? String,
-            let accentRaw = record[Field.accent] as? String
-        else {
-            return nil
-        }
-
-        let thread = ChatThread(
-            id: id,
-            relatedPetID: relatedPetID,
-            title: title,
-            subtitle: subtitle,
-            unreadCount: intValue(record[Field.unreadCount]),
-            accent: AccentToken(rawValue: accentRaw) ?? .plum,
+    private func decodeThread(_ row: ChatThreadRow) -> ChatThread {
+        ChatThread(
+            id: row.id,
+            relatedPetID: row.related_pet_id,
+            title: row.title,
+            subtitle: row.subtitle,
+            unreadCount: row.unread_count,
+            accent: AccentToken(rawValue: row.accent) ?? .plum,
             messages: []
         )
-        return (thread, createdAt(for: record))
     }
 
-    private func decodeChatMessageEntry(_ record: CKRecord) -> (threadID: UUID, message: ChatMessage, createdAt: Date)? {
-        guard
-            let threadID = uuid(from: record[Field.threadID]),
-            let id = uuid(from: record[Field.messageID]),
-            let text = record[Field.text] as? String,
-            let sentAtText = record[Field.sentAtText] as? String
-        else {
-            return nil
-        }
-
-        let message = ChatMessage(
-            id: id,
-            text: text,
-            isFromCurrentUser: boolValue(record[Field.isFromCurrentUser]),
-            sentAtText: sentAtText
+    private func decodeMessage(_ row: ChatMessageRow) -> ChatMessage {
+        ChatMessage(
+            id: row.id,
+            text: row.text,
+            isFromCurrentUser: row.is_from_current_user,
+            sentAtText: row.sent_at_text
         )
-        return (threadID, message, createdAt(for: record))
     }
 
-    private func makeUserRecord(_ user: UserAccount) -> CKRecord {
-        let record = CKRecord(
-            recordType: RecordType.userAccount,
-            recordID: recordID(prefix: Prefix.userAccount, uuid: user.id)
+    private func makeOwnedPetRow(_ pet: PetProfile, userID: UUID, createdAt: Date) -> OwnedPetRow {
+        let timestamp = SupabaseDateCodec.string(from: createdAt)
+        return OwnedPetRow(
+            id: pet.id,
+            user_id: userID,
+            name: pet.name,
+            species: pet.species,
+            breed: pet.breed,
+            age_text: pet.ageText,
+            city: pet.city,
+            bio: pet.bio,
+            interests: pet.interests,
+            looking_for: pet.lookingFor,
+            accent: pet.accent.rawValue,
+            owner_name: pet.ownerName,
+            vaccinated: pet.vaccinated,
+            created_at: timestamp,
+            updated_at: timestamp
         )
-        record[Field.accountID] = user.id.uuidString as NSString
-        record[Field.displayName] = user.displayName as NSString
-        record[Field.phone] = user.phone as NSString
-        record[Field.city] = user.city as NSString
-        record[Field.bio] = user.bio as NSString
-        record[Field.avatarSymbol] = user.avatarSymbol as NSString
-        record[Field.updatedAt] = Date() as NSDate
-        return record
     }
 
-    private func makeOwnedPetRecord(_ pet: PetProfile, userID: UUID, createdAt: Date) -> CKRecord {
-        let record = CKRecord(
-            recordType: RecordType.ownedPet,
-            recordID: recordID(prefix: Prefix.ownedPet, uuid: pet.id)
+    private func makeMemoryRow(
+        _ memory: HolidayMemory,
+        userID: UUID,
+        createdAt: Date,
+        photoStoragePath: String?,
+        audioStoragePath: String?
+    ) -> HolidayMemoryRow {
+        let timestamp = SupabaseDateCodec.string(from: createdAt)
+        return HolidayMemoryRow(
+            id: memory.id,
+            user_id: userID,
+            title: memory.title,
+            subtitle: memory.subtitle,
+            date_text: memory.dateText,
+            ornament: memory.ornament,
+            accent: memory.accent.rawValue,
+            story: memory.story,
+            photo_storage_path: photoStoragePath,
+            audio_storage_path: audioStoragePath,
+            audio_display_name: memory.audioDisplayName,
+            created_at: timestamp,
+            updated_at: timestamp
         )
-        record[Field.userID] = userID.uuidString as NSString
-        record[Field.petID] = pet.id.uuidString as NSString
-        record[Field.name] = pet.name as NSString
-        record[Field.species] = pet.species as NSString
-        record[Field.breed] = pet.breed as NSString
-        record[Field.ageText] = pet.ageText as NSString
-        record[Field.city] = pet.city as NSString
-        record[Field.bio] = pet.bio as NSString
-        record[Field.interests] = pet.interests as NSArray
-        record[Field.lookingFor] = pet.lookingFor as NSString
-        record[Field.accent] = pet.accent.rawValue as NSString
-        record[Field.ownerName] = pet.ownerName as NSString
-        record[Field.vaccinated] = NSNumber(value: pet.vaccinated)
-        record[Field.createdAt] = createdAt as NSDate
-        record[Field.updatedAt] = Date() as NSDate
-        return record
     }
 
-    private func makeMemoryRecord(_ memory: HolidayMemory, userID: UUID, createdAt: Date) -> CKRecord {
-        let record = CKRecord(
-            recordType: RecordType.holidayMemory,
-            recordID: recordID(prefix: Prefix.holidayMemory, uuid: memory.id)
+    private func makeVideoRow(_ video: UploadVideo, userID: UUID, createdAt: Date) -> UploadVideoRow {
+        let timestamp = SupabaseDateCodec.string(from: createdAt)
+        return UploadVideoRow(
+            id: video.id,
+            user_id: userID,
+            title: video.title,
+            duration: video.duration,
+            caption: video.caption,
+            tags: video.tags,
+            status: video.status.rawValue,
+            selected_asset_count: video.selectedAssetCount,
+            accent: video.accent.rawValue,
+            publish_date_text: video.publishDateText,
+            created_at: timestamp,
+            updated_at: timestamp
         )
-        record[Field.userID] = userID.uuidString as NSString
-        record[Field.memoryID] = memory.id.uuidString as NSString
-        record[Field.title] = memory.title as NSString
-        record[Field.subtitle] = memory.subtitle as NSString
-        record[Field.dateText] = memory.dateText as NSString
-        record[Field.ornament] = memory.ornament as NSString
-        record[Field.accent] = memory.accent.rawValue as NSString
-        record[Field.story] = memory.story as NSString
-        record[Field.photoAsset] = MemoryAssetStore.url(for: memory.photoAssetPath).map { CKAsset(fileURL: $0) }
-        record[Field.audioAsset] = MemoryAssetStore.url(for: memory.audioAssetPath).map { CKAsset(fileURL: $0) }
-        record[Field.audioDisplayName] = memory.audioDisplayName as NSString?
-        record[Field.createdAt] = createdAt as NSDate
-        record[Field.updatedAt] = Date() as NSDate
-        return record
     }
 
-    private func makeVideoRecord(_ video: UploadVideo, userID: UUID, createdAt: Date) -> CKRecord {
-        let record = CKRecord(
-            recordType: RecordType.uploadVideo,
-            recordID: recordID(prefix: Prefix.uploadVideo, uuid: video.id)
+    private func makeFeedPostRow(_ post: FeedPost, userID: UUID, createdAt: Date) -> FeedPostRow {
+        let timestamp = SupabaseDateCodec.string(from: createdAt)
+        return FeedPostRow(
+            id: post.id,
+            user_id: userID,
+            related_pet_id: post.relatedPetID,
+            author_name: post.authorName,
+            pet_name: post.petName,
+            topic: post.topic,
+            city: post.city,
+            content: post.content,
+            tags: post.tags,
+            likes: post.likes,
+            liked_by_current_user: post.likedByCurrentUser,
+            created_at_text: post.createdAtText,
+            created_at: timestamp,
+            updated_at: timestamp
         )
-        record[Field.userID] = userID.uuidString as NSString
-        record[Field.videoID] = video.id.uuidString as NSString
-        record[Field.title] = video.title as NSString
-        record[Field.duration] = video.duration as NSString
-        record[Field.caption] = video.caption as NSString
-        record[Field.tags] = video.tags as NSArray
-        record[Field.status] = video.status.rawValue as NSString
-        record[Field.selectedAssetCount] = NSNumber(value: video.selectedAssetCount)
-        record[Field.accent] = video.accent.rawValue as NSString
-        record[Field.publishDateText] = video.publishDateText as NSString
-        record[Field.createdAt] = createdAt as NSDate
-        record[Field.updatedAt] = Date() as NSDate
-        return record
     }
 
-    private func makeFeedPostRecord(_ post: FeedPost, userID: UUID, createdAt: Date) -> CKRecord {
-        let record = CKRecord(
-            recordType: RecordType.feedPost,
-            recordID: recordID(prefix: Prefix.feedPost, uuid: post.id)
-        )
-        record[Field.userID] = userID.uuidString as NSString
-        record[Field.postID] = post.id.uuidString as NSString
-        record[Field.relatedPetID] = post.relatedPetID?.uuidString as NSString?
-        record[Field.authorName] = post.authorName as NSString
-        record[Field.petName] = post.petName as NSString
-        record[Field.topic] = post.topic as NSString
-        record[Field.city] = post.city as NSString
-        record[Field.content] = post.content as NSString
-        record[Field.tags] = post.tags as NSArray
-        record[Field.likes] = NSNumber(value: post.likes)
-        record[Field.likedByCurrentUser] = NSNumber(value: post.likedByCurrentUser)
-        record[Field.createdAtText] = post.createdAtText as NSString
-        record[Field.createdAt] = createdAt as NSDate
-        record[Field.updatedAt] = Date() as NSDate
-        return record
-    }
-
-    private func makePostCommentRecord(
+    private func makePostCommentRow(
         _ comment: PostComment,
         postID: UUID,
         userID: UUID,
         createdAt: Date
-    ) -> CKRecord {
-        let record = CKRecord(
-            recordType: RecordType.postComment,
-            recordID: recordID(prefix: Prefix.postComment, uuid: comment.id)
+    ) -> PostCommentRow {
+        let timestamp = SupabaseDateCodec.string(from: createdAt)
+        return PostCommentRow(
+            id: comment.id,
+            user_id: userID,
+            post_id: postID,
+            author_name: comment.authorName,
+            body: comment.body,
+            created_at_text: comment.createdAtText,
+            created_at: timestamp,
+            updated_at: timestamp
         )
-        record[Field.userID] = userID.uuidString as NSString
-        record[Field.commentID] = comment.id.uuidString as NSString
-        record[Field.postID] = postID.uuidString as NSString
-        record[Field.authorName] = comment.authorName as NSString
-        record[Field.body] = comment.body as NSString
-        record[Field.createdAtText] = comment.createdAtText as NSString
-        record[Field.createdAt] = createdAt as NSDate
-        record[Field.updatedAt] = Date() as NSDate
-        return record
     }
 
-    private func makeChatThreadRecord(_ thread: ChatThread, userID: UUID, createdAt: Date) -> CKRecord {
-        let record = CKRecord(
-            recordType: RecordType.chatThread,
-            recordID: recordID(prefix: Prefix.chatThread, uuid: thread.id)
+    private func makeChatThreadRow(_ thread: ChatThread, userID: UUID, createdAt: Date) -> ChatThreadRow {
+        let timestamp = SupabaseDateCodec.string(from: createdAt)
+        return ChatThreadRow(
+            id: thread.id,
+            user_id: userID,
+            related_pet_id: thread.relatedPetID,
+            title: thread.title,
+            subtitle: thread.subtitle,
+            unread_count: thread.unreadCount,
+            accent: thread.accent.rawValue,
+            created_at: timestamp,
+            updated_at: timestamp
         )
-        record[Field.userID] = userID.uuidString as NSString
-        record[Field.threadID] = thread.id.uuidString as NSString
-        record[Field.relatedPetID] = thread.relatedPetID.uuidString as NSString
-        record[Field.title] = thread.title as NSString
-        record[Field.subtitle] = thread.subtitle as NSString
-        record[Field.unreadCount] = NSNumber(value: thread.unreadCount)
-        record[Field.accent] = thread.accent.rawValue as NSString
-        record[Field.createdAt] = createdAt as NSDate
-        record[Field.updatedAt] = Date() as NSDate
-        return record
     }
 
-    private func makeChatMessageRecord(
+    private func makeChatMessageRow(
         _ message: ChatMessage,
         threadID: UUID,
         userID: UUID,
         createdAt: Date
-    ) -> CKRecord {
-        let record = CKRecord(
-            recordType: RecordType.chatMessage,
-            recordID: recordID(prefix: Prefix.chatMessage, uuid: message.id)
+    ) -> ChatMessageRow {
+        let timestamp = SupabaseDateCodec.string(from: createdAt)
+        return ChatMessageRow(
+            id: message.id,
+            user_id: userID,
+            thread_id: threadID,
+            text: message.text,
+            is_from_current_user: message.isFromCurrentUser,
+            sent_at_text: message.sentAtText,
+            created_at: timestamp,
+            updated_at: timestamp
         )
-        record[Field.userID] = userID.uuidString as NSString
-        record[Field.messageID] = message.id.uuidString as NSString
-        record[Field.threadID] = threadID.uuidString as NSString
-        record[Field.text] = message.text as NSString
-        record[Field.isFromCurrentUser] = NSNumber(value: message.isFromCurrentUser)
-        record[Field.sentAtText] = message.sentAtText as NSString
-        record[Field.createdAt] = createdAt as NSDate
-        record[Field.updatedAt] = Date() as NSDate
-        return record
     }
 
     private func makeSignedOutPayload() -> BootstrapPayload {
@@ -1784,41 +1829,81 @@ actor CloudKitPetBackend: PetBackend {
         )
     }
 
-    private func createdAt(for record: CKRecord) -> Date {
-        (record[Field.createdAt] as? Date) ?? record.creationDate ?? Date.distantPast
+    private func eq(_ key: String, _ value: UUID) -> URLQueryItem {
+        URLQueryItem(name: key, value: "eq.\(value.uuidString.lowercased())")
     }
 
-    private func uuid(from value: Any?) -> UUID? {
-        guard let value = value as? String else { return nil }
-        return UUID(uuidString: value)
+    private func nowString() -> String {
+        SupabaseDateCodec.string(from: Date())
     }
 
-    private func intValue(_ value: Any?) -> Int {
-        if let number = value as? NSNumber {
-            return number.intValue
-        }
-        if let value = value as? Int {
-            return value
-        }
-        return 0
+    private func createdAt(from value: String) -> Date {
+        SupabaseDateCodec.date(from: value)
     }
 
-    private func boolValue(_ value: Any?) -> Bool {
-        if let number = value as? NSNumber {
-            return number.boolValue
+    private func uploadMemoryAsset(
+        relativePath: String?,
+        userID: UUID,
+        memoryID: UUID,
+        fileStem: String,
+        fallbackExtension: String
+    ) async throws -> String? {
+        guard
+            let localURL = MemoryAssetStore.url(for: relativePath),
+            FileManager.default.fileExists(atPath: localURL.path)
+        else {
+            return nil
         }
-        if let value = value as? Bool {
-            return value
-        }
-        return false
+
+        let fileExtension = localURL.pathExtension.isEmpty ? fallbackExtension : localURL.pathExtension.lowercased()
+        let storagePath = "users/\(userID.uuidString.lowercased())/memories/\(memoryID.uuidString.lowercased())/\(fileStem).\(fileExtension)"
+        let data = try Data(contentsOf: localURL)
+        try await client.uploadObject(data: data, path: storagePath, contentType: contentType(forExtension: fileExtension))
+        return storagePath
     }
 
-    private func isUnknownItem(_ error: Error) -> Bool {
-        guard let ckError = error as? CKError else {
-            return false
+    private func cacheAssetIfNeeded(storagePath: String?, fallbackExtension: String) async -> String? {
+        guard let storagePath else {
+            return nil
         }
 
-        return ckError.code == .unknownItem
+        let rawFileName = storagePath.split(separator: "/").last.map(String.init) ?? "\(UUID().uuidString.lowercased()).\(fallbackExtension)"
+        let fileName = rawFileName.contains(".") ? rawFileName : "\(rawFileName).\(fallbackExtension)"
+
+        if let cachedPath = MemoryAssetStore.existingRelativePath(fileName: fileName) {
+            return cachedPath
+        }
+
+        do {
+            let data = try await client.downloadObject(path: storagePath)
+            return try MemoryAssetStore.saveDownloadedData(data, fileName: fileName)
+        } catch {
+            print("[PetLife] Failed to cache Supabase asset \(storagePath): \(error)")
+            return nil
+        }
+    }
+
+    private func contentType(forExtension fileExtension: String) -> String {
+        switch fileExtension.lowercased() {
+        case "jpg", "jpeg":
+            return "image/jpeg"
+        case "png":
+            return "image/png"
+        case "heic":
+            return "image/heic"
+        case "webp":
+            return "image/webp"
+        case "m4a":
+            return "audio/m4a"
+        case "aac":
+            return "audio/aac"
+        case "mp3":
+            return "audio/mpeg"
+        case "wav":
+            return "audio/wav"
+        default:
+            return "application/octet-stream"
+        }
     }
 }
 
@@ -1826,6 +1911,8 @@ actor CloudKitPetBackend: PetBackend {
 @Observable
 final class AppModel {
     private let backend: any PetBackend
+    private(set) var postMediaAttachments: [UUID: PostMediaAttachment] = [:]
+    private var memoryMediaAttachments: [UUID: PostMediaAttachment] = [:]
 
     var isLoaded = false
     var isBusy = false
@@ -1851,6 +1938,11 @@ final class AppModel {
 
     var pendingVideos: [UploadVideo] {
         uploadVideos.filter { $0.status == .draft || $0.status == .uploading }
+    }
+
+    var myPosts: [FeedPost] {
+        guard let currentUser else { return [] }
+        return feedPosts.filter { $0.authorName == currentUser.displayName }
     }
 
     func loadIfNeeded() async {
@@ -1881,9 +1973,29 @@ final class AppModel {
     }
 
     func addMemory(_ draft: MemoryDraft) async {
+        if let mediaAssetPath = draft.mediaAssetPath ?? draft.photoAssetPath {
+            memoryMediaAttachments[draft.id] = PostMediaAttachment(
+                kind: draft.mediaKind,
+                localAssetPath: mediaAssetPath,
+                displayName: draft.mediaDisplayName ?? draft.mediaKind.rawValue
+            )
+        }
         isBusy = true
         apply(await backend.addMemory(draft))
         isBusy = false
+    }
+
+    func addMemoryNote(memoryID: UUID, text: String) {
+        guard let index = holidayMemories.firstIndex(where: { $0.id == memoryID }) else {
+            return
+        }
+
+        let note = MemoryNote(
+            id: UUID(),
+            body: text,
+            createdAtText: "刚刚"
+        )
+        holidayMemories[index].notes.insert(note, at: 0)
     }
 
     func createVideo(_ draft: VideoDraft, selectedAssetCount: Int) async {
@@ -1894,6 +2006,9 @@ final class AppModel {
 
     func createPost(_ draft: PostDraft, petName: String) async {
         guard let currentUser else { return }
+        if let attachment = draft.mediaAttachment {
+            postMediaAttachments[draft.id] = attachment
+        }
         isBusy = true
         apply(await backend.createPost(draft, user: currentUser, petName: petName))
         isBusy = false
@@ -1926,13 +2041,35 @@ final class AppModel {
         feedPosts.first(where: { $0.id == id })
     }
 
+    func memory(for id: UUID) -> HolidayMemory? {
+        holidayMemories.first(where: { $0.id == id })
+    }
+
+    func mediaAttachment(for postID: UUID) -> PostMediaAttachment? {
+        postMediaAttachments[postID]
+    }
+
     private func apply(_ payload: BootstrapPayload) {
         currentUser = payload.currentUser
         ownedPets = payload.ownedPets
         discoverPets = payload.discoverPets
         holidayMemories = payload.memories
+        for index in holidayMemories.indices {
+            guard let attachment = memoryMediaAttachments[holidayMemories[index].id] else {
+                continue
+            }
+
+            holidayMemories[index].mediaKind = attachment.kind
+            holidayMemories[index].mediaAssetPath = attachment.localAssetPath
+            holidayMemories[index].mediaDisplayName = attachment.displayName
+            if attachment.kind == .image {
+                holidayMemories[index].photoAssetPath = attachment.localAssetPath
+            }
+        }
         uploadVideos = payload.uploadVideos
         feedPosts = payload.feedPosts
         chatThreads = payload.chatThreads
+        let validPostIDs = Set(payload.feedPosts.map(\.id))
+        postMediaAttachments = postMediaAttachments.filter { validPostIDs.contains($0.key) }
     }
 }

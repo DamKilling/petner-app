@@ -18,7 +18,7 @@ struct ProfileHubView: View {
                     addAction: { isShowingPetSheet = true }
                 )
 
-                ChatInboxSection(appModel: appModel)
+                MyMessagesEntry(appModel: appModel)
 
                 Button("退出当前账号", action: handleSignOut)
                     .fontWeight(.semibold)
@@ -144,55 +144,355 @@ private struct PetSection: View {
     }
 }
 
-private struct ChatInboxSection: View {
+private struct MyMessagesEntry: View {
     let appModel: AppModel
+
+    private var unreadCount: Int {
+        appModel.chatThreads.reduce(ServiceInboxThread.samplesUnreadCount) { partialResult, thread in
+            partialResult + thread.unreadCount
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("聊天入口")
+            Text("消息中心")
                 .font(.title3.weight(.semibold))
 
-            ForEach(appModel.chatThreads) { thread in
-                NavigationLink {
-                    ChatThreadView(appModel: appModel, threadID: thread.id)
-                } label: {
-                    HStack(spacing: 14) {
-                        Circle()
-                            .fill(thread.accent.color.opacity(0.2))
-                            .frame(width: 44, height: 44)
-                            .overlay(
-                                Image(systemName: "bubble.left.and.bubble.right.fill")
-                                    .foregroundStyle(thread.accent.color)
+            NavigationLink {
+                MessageInboxView(appModel: appModel)
+            } label: {
+                HStack(spacing: 14) {
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [AccentToken.plum.color.opacity(0.22), PetTheme.accent.opacity(0.12)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
                             )
+                        )
+                        .frame(width: 58, height: 58)
+                        .overlay(
+                            Image(systemName: "tray.full.fill")
+                                .font(.system(size: 24, weight: .semibold))
+                                .foregroundStyle(AccentToken.plum.color)
+                        )
 
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(thread.title)
-                                .font(.headline)
-                                .foregroundStyle(PetTheme.ink)
-                            Text(thread.subtitle)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .lineLimit(2)
-                        }
-
-                        Spacer()
-
-                        if thread.unreadCount > 0 {
-                            Text("\(thread.unreadCount)")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 6)
-                                .background(PetTheme.accent, in: Capsule())
-                        }
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("我的消息")
+                            .font(.headline)
+                            .foregroundStyle(PetTheme.ink)
+                        Text("接收服务咨询和宠物交友消息，并继续回复聊天。")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .lineLimit(2)
                     }
-                    .padding(16)
-                    .background(.white, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+
+                    Spacer()
+
+                    if unreadCount > 0 {
+                        Text("\(unreadCount)")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .background(PetTheme.accent, in: Capsule())
+                    }
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
                 }
+                .padding(16)
+                .background(.white, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
             }
+            .buttonStyle(.plain)
         }
     }
+}
+
+private struct MessageInboxView: View {
+    let appModel: AppModel
+
+    @State private var serviceThreads = ServiceInboxThread.samples
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                inboxHeader
+
+                MessageThreadSection(title: "服务消息") {
+                    ForEach($serviceThreads) { $thread in
+                        NavigationLink {
+                            ServiceInboxChatView(thread: $thread)
+                        } label: {
+                            MessageThreadRow(
+                                icon: thread.icon,
+                                title: thread.title,
+                                subtitle: thread.subtitle,
+                                source: thread.source,
+                                unreadCount: thread.unreadCount,
+                                accent: thread.accent
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                MessageThreadSection(title: "交友消息") {
+                    if appModel.chatThreads.isEmpty {
+                        EmptyInboxCard(text: "还没有宠物交友消息。去相亲角发起聊天后，对话会出现在这里。")
+                    } else {
+                        ForEach(appModel.chatThreads) { thread in
+                            NavigationLink {
+                                ChatThreadView(appModel: appModel, threadID: thread.id)
+                            } label: {
+                                MessageThreadRow(
+                                    icon: "bubble.left.and.bubble.right.fill",
+                                    title: thread.title,
+                                    subtitle: thread.subtitle,
+                                    source: "宠物相亲角",
+                                    unreadCount: thread.unreadCount,
+                                    accent: thread.accent
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle("我的消息")
+    }
+
+    private var inboxHeader: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("消息盒子")
+                .font(.largeTitle.weight(.bold))
+                .foregroundStyle(PetTheme.ink)
+            Text("这里集中接收服务页面和宠物相亲角发来的消息，用户可以点进会话继续回复。")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+private struct MessageThreadSection<Content: View>: View {
+    let title: String
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(PetTheme.ink)
+
+            content
+        }
+    }
+}
+
+private struct MessageThreadRow: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    let source: String
+    let unreadCount: Int
+    let accent: AccentToken
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Circle()
+                .fill(accent.color.opacity(0.2))
+                .frame(width: 48, height: 48)
+                .overlay(
+                    Image(systemName: icon)
+                        .foregroundStyle(accent.color)
+                )
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 8) {
+                    Text(title)
+                        .font(.headline)
+                        .foregroundStyle(PetTheme.ink)
+                    Text(source)
+                        .font(.caption2.weight(.semibold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(accent.color.opacity(0.1), in: Capsule())
+                        .foregroundStyle(accent.color)
+                }
+
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(2)
+            }
+
+            Spacer()
+
+            if unreadCount > 0 {
+                Text("\(unreadCount)")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+                    .background(PetTheme.accent, in: Capsule())
+            }
+
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
+        .padding(16)
+        .background(.white, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+}
+
+private struct EmptyInboxCard: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(.white, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+}
+
+private struct ServiceInboxChatView: View {
+    @Binding var thread: ServiceInboxThread
+
+    @State private var draft = ""
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 12) {
+                    ForEach(thread.messages) { message in
+                        HStack {
+                            if message.isFromCurrentUser {
+                                Spacer()
+                            }
+
+                            Text(message.text)
+                                .font(.subheadline)
+                                .padding(14)
+                                .background(
+                                    message.isFromCurrentUser ? thread.accent.color : Color.white,
+                                    in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                )
+                                .foregroundStyle(message.isFromCurrentUser ? .white : PetTheme.ink)
+
+                            if !message.isFromCurrentUser {
+                                Spacer()
+                            }
+                        }
+                    }
+                }
+                .padding(20)
+            }
+
+            HStack(spacing: 12) {
+                TextField("输入回复", text: $draft)
+                    .textFieldStyle(.roundedBorder)
+
+                Button("发送", action: send)
+                    .buttonStyle(.borderedProminent)
+                    .tint(thread.accent.color)
+                    .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            .padding(16)
+            .background(.thinMaterial)
+        }
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle(thread.title)
+        .onAppear {
+            thread.unreadCount = 0
+        }
+    }
+
+    private func send() {
+        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else {
+            return
+        }
+
+        thread.messages.append(ServiceInboxMessage(id: UUID(), text: text, isFromCurrentUser: true, sentAtText: "刚刚"))
+        thread.subtitle = text
+        thread.unreadCount = 0
+        draft = ""
+    }
+}
+
+private struct ServiceInboxThread: Identifiable, Hashable {
+    let id: UUID
+    var title: String
+    var subtitle: String
+    var source: String
+    var icon: String
+    var unreadCount: Int
+    var accent: AccentToken
+    var messages: [ServiceInboxMessage]
+
+    static var samplesUnreadCount: Int {
+        samples.reduce(0) { $0 + $1.unreadCount }
+    }
+
+    static let samples: [ServiceInboxThread] = [
+        ServiceInboxThread(
+            id: UUID(uuidString: "B1000000-0000-0000-0000-000000000001") ?? UUID(),
+            title: "暖爪家庭寄养",
+            subtitle: "你好，可以先发一下宠物年龄和寄养日期吗？",
+            source: "服务 · 寄养",
+            icon: "house.fill",
+            unreadCount: 1,
+            accent: .mint,
+            messages: [
+                ServiceInboxMessage(id: UUID(), text: "你好，我看到你在服务页咨询寄养。", isFromCurrentUser: false, sentAtText: "今天 10:20"),
+                ServiceInboxMessage(id: UUID(), text: "可以先发一下宠物年龄、性格和寄养日期吗？", isFromCurrentUser: false, sentAtText: "今天 10:22")
+            ]
+        ),
+        ServiceInboxThread(
+            id: UUID(uuidString: "B1000000-0000-0000-0000-000000000002") ?? UUID(),
+            title: "毛球造型研究所",
+            subtitle: "本周六下午还有一个基础护理档期。",
+            source: "服务 · 美容",
+            icon: "scissors",
+            unreadCount: 0,
+            accent: .peach,
+            messages: [
+                ServiceInboxMessage(id: UUID(), text: "本周六下午还有一个基础护理档期。", isFromCurrentUser: false, sentAtText: "昨天 16:40"),
+                ServiceInboxMessage(id: UUID(), text: "如果宠物比较怕吹风，可以提前备注。", isFromCurrentUser: false, sentAtText: "昨天 16:41")
+            ]
+        ),
+        ServiceInboxThread(
+            id: UUID(uuidString: "B1000000-0000-0000-0000-000000000003") ?? UUID(),
+            title: "安安宠物医院",
+            subtitle: "体检预约可以带上疫苗本和既往检查记录。",
+            source: "服务 · 医院",
+            icon: "cross.case.fill",
+            unreadCount: 1,
+            accent: .ember,
+            messages: [
+                ServiceInboxMessage(id: UUID(), text: "你好，体检预约可以带上疫苗本和既往检查记录。", isFromCurrentUser: false, sentAtText: "今天 09:18")
+            ]
+        )
+    ]
+}
+
+private struct ServiceInboxMessage: Identifiable, Hashable {
+    let id: UUID
+    var text: String
+    var isFromCurrentUser: Bool
+    var sentAtText: String
 }
 
 private struct AddPetSheet: View {
